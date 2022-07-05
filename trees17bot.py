@@ -19,7 +19,7 @@ app = Flask(__name__)
 
 line_bot_api = LineBotApi('YOUR_CHANNEL_ACCESS_TOKEN')
 handler = WebhookHandler('YOUR_CHANNEL_SECRET')
-model = load_model('trees17v1.h5')
+model = load_model('trees17V1.h5')
 label = 'treeset_labels.txt'
 
 @app.route("/callback", methods=['POST'])
