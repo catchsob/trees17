@@ -24,7 +24,7 @@ line_bot_api = LineBotApi('YOUR_CHANNEL_ACCESS_TOKEN')
 handler = WebhookHandler('YOUR_CHANNEL_SECRET')
 label = 'treeset_labels.txt'
 res = 448
-grpc = 'YOUR_IP:YOUR_PORT'
+grpcurl = 'YOUR_IP:YOUR_PORT'
 ssl = False
 model = 'YOUR_MODEL'
 modelin = 'YOUR_MODELIN'
@@ -76,9 +76,9 @@ def classify_grpc(img):
     img = ImageOps.fit(img, (res, res))
     img = (np.expand_dims(img, axis=0)/255.).astype(np.float32)
     if ssl:
-        channel = grpc.secure_channel(grpc, grpc.ssl_channel_credentials())
+        channel = grpc.secure_channel(grpcurl, grpc.ssl_channel_credentials())
     else:
-        channel = grpc.insecure_channel(grpc)
+        channel = grpc.insecure_channel(grpcurl)
     stub = prediction_service_pb2_grpc.PredictionServiceStub(channel)
     req = predict_pb2.PredictRequest()
     req.model_spec.name = model
