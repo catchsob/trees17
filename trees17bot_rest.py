@@ -20,7 +20,7 @@ app = Flask(__name__)
 line_bot_api = LineBotApi('YOUR_CHANNEL_ACCESS_TOKEN')
 handler = WebhookHandler('YOUR_CHANNEL_SECRET')
 label = 'treeset_labels.txt'
-rest = 'http://YOUR_IP:YOUR_PORT/v1/models/YOUR_MODEL:predict'
+rest = 'http://YOUR_HOST:YOUR_PORT/v1/models/YOUR_MODEL:predict'
 res = 448
 
 
