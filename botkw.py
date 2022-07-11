@@ -17,7 +17,7 @@ def rep(filename, secret=None, token=None, model=None, labels=None):
     with open(filename, 'r', encoding='utf-8') as f:
         content = f.read()
     for k in m:
-        if content.find(k) >= 0:
+        if m[k] and content.find(k) >= 0:
             replaced = True
             content = content.replace(k, m[k])
     if replaced:
