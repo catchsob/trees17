@@ -25,7 +25,7 @@ app = Flask(__name__)
 
 line_bot_api = LineBotApi('YOUR_CHANNEL_ACCESS_TOKEN')
 handler = WebhookHandler('YOUR_CHANNEL_SECRET')
-label = 'treeset_labels.txt'
+label = 'YOUR_LABELS'
 res = 448
 grpcurl = 'YOUR_HOST:YOUR_PORT'
 ssl = False
