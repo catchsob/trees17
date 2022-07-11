@@ -25,6 +25,7 @@ app = Flask(__name__)
 
 line_bot_api = LineBotApi('YOUR_CHANNEL_ACCESS_TOKEN')
 handler = WebhookHandler('YOUR_CHANNEL_SECRET')
+js = 'YOUR_URI'
 label = 'treeset_labels.txt'
 res = 448
 grpcurl = 'YOUR_HOST:YOUR_PORT'
@@ -60,7 +61,7 @@ def callback():
 def handle_message(event):
     msg = TextSendMessage(text=event.message.text)
     if event.message.text == 'web':
-        items = [QuickReplyButton(action=URIAction(label='TensorFlow.js', uri='https://testing.enadv.site/trees'))]
+        items = [QuickReplyButton(action=URIAction(label='TensorFlow.js', uri=js))]
         msg.quickReply = QuickReply(items=items)
     line_bot_api.reply_message(
         event.reply_token,
