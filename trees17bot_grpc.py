@@ -26,7 +26,7 @@ label = 'YOUR_LABELS'
 res = 448
 grpcurl = 'YOUR_HOST:YOUR_PORT'
 ssl = False
-model = 'YOUR_MODEL'
+model = 'YOUR_MODELNAME'
 modelin = 'YOUR_MODELIN'
 modelout = 'YOUR_MODELOUT'
 
