@@ -42,7 +42,7 @@ args = parser.parse_args()
 kws = dict(secret=args.secret,
            token=args.token,
            labels=args.labels,
-           model=args.model
+           model=args.model,
            modelin=args.modelin,
            modelout=args.modelout)
 
