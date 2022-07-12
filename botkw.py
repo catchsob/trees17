@@ -3,14 +3,15 @@ import argparse
 from glob import glob
 
 
-def rep(filename, secret=None, token=None, model=None, labels=None, modelin=None, modelout=None):
-    if not secret and not token and not model and not labels:
+def rep(filename, secret=None, token=None, model=None, labels=None, modelin=None, modelout=None, modelname=None):
+    if not secret and not token and not model and not labels and not modelin and not modelout and not modelname:
         return False
     
     m = {'YOUR_CHANNEL_ACCESS_TOKEN': token,
          'YOUR_CHANNEL_SECRET': secret,
          'YOUR_LABELS': labels,
          'YOUR_MODELIN': modelin,
+         'YOUR_MODELNAME': modelname,
          'YOUR_MODELOUT': modelout,
          'YOUR_MODEL': model
         }
@@ -33,6 +34,7 @@ parser.add_argument('files', type=str, nargs='+',
 parser.add_argument('--labels', '-l', type=str, help='to replace YOUR_LABELS')
 parser.add_argument('--model', '-m', type=str, help='to replace YOUR_MODEL')
 parser.add_argument('--modelin', '-i', type=str, help='to replace YOUR_MODELIN')
+parser.add_argument('--modelname', '-n', type=str, help='to replace YOUR_MODELNAME')
 parser.add_argument('--modelout', '-o', type=str, help='to replace YOUR_MODELOUT')
 parser.add_argument('--secret', '-s', type=str, help='to replace YOUR_CHANNEL_SECRET')
 parser.add_argument('--token', '-t', type=str, help='to replace YOUR_CHANNEL_ACCESS_TOKEN')
@@ -44,7 +46,8 @@ kws = dict(secret=args.secret,
            labels=args.labels,
            model=args.model,
            modelin=args.modelin,
-           modelout=args.modelout)
+           modelout=args.modelout,
+           modelname=args.modelname)
 
 for file in args.files:
     fs = glob(file)
