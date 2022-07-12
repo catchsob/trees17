@@ -20,7 +20,7 @@ app = Flask(__name__)
 line_bot_api = LineBotApi('YOUR_CHANNEL_ACCESS_TOKEN')
 handler = WebhookHandler('YOUR_CHANNEL_SECRET')
 label = 'YOUR_LABELS'
-rest = 'http://YOUR_HOST:YOUR_PORT/v1/models/YOUR_MODEL:predict'
+rest = 'http://YOUR_HOST:YOUR_PORT/v1/models/YOUR_MODELNAME:predict'
 res = 448
 
 
