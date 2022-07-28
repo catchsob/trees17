@@ -24,14 +24,14 @@ def h5_to_tfl(h5, tfl=None, res=200):
     return tfl
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--hdf5', type=str, required=True)
+parser.add_argument('HDF5', type=str)
 parser.add_argument('--tflite', type=str, default=None)
 parser.add_argument('--resolution', type=int, default=200)
 
 args = parser.parse_args()
 
-a = h5_to_tfl(args.hdf5, args.tflite, args.resolution)
+a = h5_to_tfl(args.HDF5, args.tflite, args.resolution)
 if a:
-    print(f'{args.hdf5} converts to {a} done.')
+    print(f'{args.HDF5} converts to {a} done.')
 else:
-    print(f'{args.hdf5} converts failed!')
+    print(f'{args.HDF5} converts failed!')
