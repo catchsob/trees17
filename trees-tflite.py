@@ -22,7 +22,7 @@ if __name__ == '__main__':
     input_data = np.expand_dims(img, axis=0)
     floating_model = input_details[0]['dtype'] == np.float32
     if floating_model:
-        input_data = input_data.astype('float32') / 127.5 - 1
+        input_data = input_data.astype('float32') / 255.
     interpreter.set_tensor(input_details[0]['index'], input_data)
     
     interpreter.invoke()
