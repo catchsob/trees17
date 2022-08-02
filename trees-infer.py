@@ -17,14 +17,14 @@ def crop(img):
     return img.crop((d, 0, w-d, h))
 
 def preprocess_image(images, res=448, expand=False, precision='float32', pn1=False):
-    img_shape = (res, res)
+    imgshape = (res, res)
     fs = images.split(',')
-    imgs = np.empty((len(fs), *img_shape, 3), dtype=precision)
+    imgs = np.empty((len(fs), *imgshape, 3), dtype=precision)
     for i, f in enumerate(fs):
         img = Image.open(f)
         img = crop(img)
-        img = img.resize(img_shape)
-        imgs[i] = np.reshape(img.getdata(), (*img_shape, 3))
+        img = img.resize(imgshape)
+        imgs[i] = np.reshape(img.getdata(), (*imgshape, 3))
     imgs = imgs / 127.5 - 1 if pn1 else imgs / 255.
     return imgs
 
@@ -37,7 +37,20 @@ def infer_h5(model, imgs):
     return np.argmax(preds, axis=1)
 
 def infer_tflite(model, imgs):
-    return None
+    import tflite_runtime.interpreter as tflite
+    
+    interpreter = tflite.Interpreter(model_path=model)
+    interpreter.allocate_tensors()
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
+    preds = []
+    for img in imgs:
+        interpreter.set_tensor(input_details[0]['index'], np.expand_dims(img, axis=0))
+        interpreter.invoke()
+        output_data = interpreter.get_tensor(output_details[0]['index'])    
+        results = np.squeeze(output_data)
+        preds.append(results.argsort()[-5:][::-1][0])
+    return preds
 
 def infer_trt(model, imgs):
     import tensorrt as trt
