@@ -18,10 +18,9 @@ def crop(img):
 
 def preprocess_image(images, res=448, expand=False, precision='float32', pn1=False):
     imgshape = (res, res)
-    fs = images.split(',')
-    imgs = np.empty((len(fs), *imgshape, 3), dtype=precision)
-    for i, f in enumerate(fs):
-        img = Image.open(f)
+    imgs = np.empty((len(images), *imgshape, 3), dtype=precision)
+    for i, image in enumerate(images):
+        img = Image.open(image)
         img = crop(img)
         img = img.resize(imgshape)
         imgs[i] = np.reshape(img.getdata(), (*imgshape, 3))
@@ -85,7 +84,7 @@ def label(labels, preds):
 infermap = {'h5': infer_h5, 'tflite': infer_tflite, 'trt': infer_trt}
 parser = argparse.ArgumentParser()
 parser.add_argument('model', type=str)
-parser.add_argument('trees', type=str, help='image files of trees to be classified, seperated by common')
+parser.add_argument('trees', type=str, nargs='+', help='image files of trees to be classified, seperated by common')
 parser.add_argument('-f', '--model_format', type=str, choices=infermap.keys(), help='format of model')
 parser.add_argument('-l', '--labels', type=str, help='file for prediction-label mapping')
 parser.add_argument('-p', '--precision', type=str, default='float32', choices=['float16', 'float32'], help='default float32')
