@@ -35,6 +35,16 @@ def infer_h5(model, imgs):
     preds = model.predict(imgs)
     return np.argmax(preds, axis=1)
 
+def infer_onnx(model, imgs):
+    import onnxruntime
+    
+    session = onnxruntime.InferenceSession(model, providers=['CPUExecutionProvider'])
+    in_name = session.get_inputs()[0].name
+    out_name = session.get_outputs()[0].name
+    r = session.run([out_name], {in_name: imgs})
+    preds = np.argmax(np.array(r).squeeze(), axis=1)
+    return preds
+
 def infer_tflite(model, imgs):
     import tflite_runtime.interpreter as tflite
     
@@ -77,11 +87,11 @@ def label(labels, preds):
             with open(labels, encoding='utf-8') as f:
                 lbs = f.readlines()
             return [lbs[pred].strip() for pred in preds]
-        except:
+        except Exception as e:
             pass
     return preds.tolist() if isinstance(preds, np.ndarray) else preds
 
-infermap = {'h5': infer_h5, 'tflite': infer_tflite, 'trt': infer_trt}
+infermap = {'h5': infer_h5, 'onnx': infer_onnx, 'tflite': infer_tflite, 'trt': infer_trt}
 parser = argparse.ArgumentParser()
 parser.add_argument('model', type=str)
 parser.add_argument('trees', type=str, nargs='+', help='image files of trees to be classified, seperated by common')
