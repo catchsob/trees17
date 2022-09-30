@@ -5,8 +5,6 @@ import numpy as np
 import requests
 import grpc
 from PIL import Image
-from tensorflow import make_tensor_proto
-from tensorflow_serving.apis import predict_pb2, prediction_service_pb2_grpc
 
 def preprocess(filename, res=400):
     img = Image.open(filename)
@@ -25,6 +23,9 @@ def test_rest(img, model, host, port=8501, ssl=False):
     return np.argmax(r.json()['predictions'])
     
 def test_grpc(img, model, host, modelin='input_1', modelout='dense_1', port=8500, ssl=False):
+    from tensorflow import make_tensor_proto
+    from tensorflow_serving.apis import predict_pb2, prediction_service_pb2_grpc
+    
     if ssl:
         channel = grpc.secure_channel(f'{host}:{port}', grpc.ssl_channel_credentials())
     else:
