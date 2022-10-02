@@ -1,0 +1,100 @@
+<div id="sellect">Image: <input type="file" id='select_img' accept="image/*, capture=camera" onchange="preview()"></div>
+<div>Prediction: <label id="pred"></label>/ Confidence: <label id="conf"></label></div>
+<br>
+<img id="preview_img" /><br>
+
+<style type="text/css">
+    div, input {
+        font-size: 4vw;
+    }
+    label {
+        color: brown;
+    }
+    img {
+        width: 80%;
+    }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
+<script language="javascript" >
+    const MODEL_NAME = 'YOUR_MODEL_TFJS';
+	const ENV = 'env.json'
+    const LABELS_NAME = 'YOUR_LABELS';
+    const IMAGE_SIZE = 448;
+    let env;
+	let model;
+    let labels;
+    
+    function preview() {
+        if (!window.FileReader) {
+            console.log('no preview functionality supported by your browser!');
+            return;
+        }
+        
+        let reader = new FileReader();
+        reader.onload = function (event) {
+            let img = document.getElementById("preview_img");
+            img.src = event.target.result;
+            predict(img);
+        };
+
+        let file = document.getElementById("select_img").files[0];
+        reader.readAsDataURL(file);
+	}
+	
+	async function init() {
+		env = load_env(ENV)
+        labels = load_labels(env[LABELS_NAME]).split('\r\n')
+        console.log('labels ' + env[LABELS_NAME] + ' loaded.')
+	}
+    
+    async function predict(imgElement) {
+        model = await tf.loadGraphModel(env[MODEL_NAME]);
+        console.log('model ' + env[MODEL_NAME] + ' loaded.')
+    
+        const logits = tf.tidy(() => {
+            const img = tf.cast(tf.browser.fromPixels(imgElement).resizeBilinear([IMAGE_SIZE, IMAGE_SIZE]), 'float32');
+            const offset = tf.scalar(255.0);
+            const normalized = img.div(offset);
+            const batched = normalized.reshape([1, IMAGE_SIZE, IMAGE_SIZE, 3]);
+            return model.predict(batched);
+        });
+        
+        const values = await logits.data();
+        let p = -1;
+        let v = -0.1;
+        for (let i = 0; i < values.length; i++) {
+            if (values[i] > v) {
+                v = values[i];
+                p = i
+            }
+        }
+        document.getElementById("pred").innerHTML = labels[p]
+        document.getElementById("conf").innerHTML = v.toPrecision(4)
+        console.log({value: v, index: p, label: labels[p]});
+    }
+    
+    function load_labels(filePath) {
+        var result = null;
+        var xmlhttp = new XMLHttpRequest();
+        xmlhttp.open("GET", filePath, false);
+        xmlhttp.send();
+        if (xmlhttp.status==200) {
+            result = xmlhttp.responseText;
+        }
+        return result;
+    }
+	
+	function load_env(filePath) {
+        var result = null;
+        var xmlhttp = new XMLHttpRequest();
+        xmlhttp.open("GET", filePath, false);
+        xmlhttp.send();
+        if (xmlhttp.status==200) {
+            result = xmlhttp.responseText;
+        }
+		return JSON.parse(result);
+    }
+    
+    init();
+</script>
