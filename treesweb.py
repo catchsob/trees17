@@ -1,4 +1,3 @@
-import os
 import io
 import json
 
@@ -30,7 +29,7 @@ else:
     channel = grpc.insecure_channel(grpcurl)
 
 
-@app.route("/predict", methods=['GET'])
+@app.route("/trees", methods=['GET'])
 def ask():
     page = '''
     <div id="select">Image:
@@ -85,7 +84,7 @@ def ask():
     
     return page
 
-@app.route("/predict", methods=['POST'])
+@app.route("/trees", methods=['POST'])
 def predict():
     data = {'prediction': None, 'confidence': None}
     if request.method == 'POST':
@@ -116,4 +115,5 @@ def classify_grpc(img):
         labels = f.read().split()
     return labels[p] if 0 <= p < len(labels) else 'unknown', r[p]
 
-app.run()
+if __name__ == '__main__':
+    app.run()
