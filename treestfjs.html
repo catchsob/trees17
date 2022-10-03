@@ -1,4 +1,4 @@
-<div id="sellect">Image: <input type="file" id='select_img' accept="image/*, capture=camera" onchange="preview()"></div>
+<div id="select">Image: <input type="file" id="select_img" accept="image/*, capture=camera" onchange="preview()"></div>
 <div>Prediction: <label id="pred"></label>/ Confidence: <label id="conf"></label></div>
 <br>
 <img id="preview_img" /><br>
@@ -16,7 +16,7 @@
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
-<script language="javascript" >
+<script language="javascript">
     const MODEL_NAME = 'YOUR_MODEL_TFJS';
 	const ENV = 'env.json'
     const LABELS_NAME = 'YOUR_LABELS';
@@ -44,7 +44,7 @@
 	
 	async function init() {
 		env = load_env(ENV)
-        labels = load_labels(env[LABELS_NAME]).split('\r\n')
+        labels = load_labels(env[LABELS_NAME]).split("\r\n")
         console.log('labels ' + env[LABELS_NAME] + ' loaded.')
 	}
     
