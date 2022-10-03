@@ -64,7 +64,7 @@ def ask():
                 img.src = event.target.result;
                 const payload = new FormData();
                 payload.append('imagefile', file, file.name);
-                fetch('predict', {method: "POST", body: payload})
+                fetch("trees", {method: "POST", body: payload})
                     .then((response) => response.json())
                     .then((data) => {
                         document.getElementById("pred").innerHTML = data["prediction"]
@@ -72,7 +72,7 @@ def ask():
                         console.log(data); 
                     })
                     .catch((error) => {
-                        console.log(`Error: ${error}`);
+                        console.log("Error: ${error}");
                     })
             };
 
