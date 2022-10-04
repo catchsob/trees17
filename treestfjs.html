@@ -18,11 +18,11 @@
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
 <script language="javascript">
     const MODEL_NAME = 'YOUR_MODEL_TFJS';
-	const ENV = 'env.json'
+    const ENV = 'env.json'
     const LABELS_NAME = 'YOUR_LABELS';
     const IMAGE_SIZE = 448;
     let env;
-	let model;
+    let model;
     let labels;
     
     function preview() {
@@ -93,7 +93,7 @@
         if (xmlhttp.status==200) {
             result = xmlhttp.responseText;
         }
-		return JSON.parse(result);
+        return JSON.parse(result);
     }
     
     init();
