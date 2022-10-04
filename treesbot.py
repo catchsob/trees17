@@ -22,7 +22,7 @@ with open('env.json') as f:
     env = json.load(f)
 line_bot_api = LineBotApi(env['YOUR_CHANNEL_ACCESS_TOKEN'])
 handler = WebhookHandler(env['YOUR_CHANNEL_SECRET'])
-model = load_model(env['YOUR_MODELFILE'])
+model = load_model(env['YOUR_MODEL_FILE'])
 label = env['YOUR_LABELS']
 
 @app.route("/callback", methods=['POST'])
