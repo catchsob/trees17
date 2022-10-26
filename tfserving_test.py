@@ -1,12 +1,10 @@
 import argparse
-import json
 
 import numpy as np
-import requests
-import grpc
-from PIL import Image
 
 def preprocess(filename, res=400):
+    from PIL import Image
+    
     img = Image.open(filename)
     img = img.resize((res, res))
     data = np.array(img.getdata())
@@ -16,6 +14,10 @@ def preprocess(filename, res=400):
     return img
 
 def test_rest(img, model, host, port=8501, ssl=False):
+    import json
+    
+    import requests
+    
     headers = {"content-type": "application/json"}
     data = json.dumps({"instances": img.tolist()})
     r = requests.post(f'http{"s" if ssl else ""}://{host}:{port}/v1/models/{model}:predict',
@@ -23,6 +25,7 @@ def test_rest(img, model, host, port=8501, ssl=False):
     return np.argmax(r.json()['predictions'])
     
 def test_grpc(img, model, host, modelin='input_1', modelout='dense_1', port=8500, ssl=False):
+    import grpc
     from tensorflow import make_tensor_proto
     from tensorflow_serving.apis import predict_pb2, prediction_service_pb2_grpc
     
