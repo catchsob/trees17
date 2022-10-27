@@ -23,7 +23,8 @@ with open('env.json') as f:
 line_bot_api = LineBotApi(env['YOUR_CHANNEL_ACCESS_TOKEN'])
 handler = WebhookHandler(env['YOUR_CHANNEL_SECRET'])
 label = env['YOUR_LABELS']
-rest = f'http://{env["YOUR_REST_HOST"]}:{env["YOUR_REST_PORT"]}/v1/models/{env["YOUR_MODEL_NAME"]}:predict'
+ssl = 's' if env['YOUR_REST_SSL'] else ''
+rest = f'http{ssl}://{env["YOUR_REST_HOST"]}:{env["YOUR_REST_PORT"]}/v1/models/{env["YOUR_MODEL_NAME"]}:predict'
 res = 448
 
 
