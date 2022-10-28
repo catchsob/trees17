@@ -43,7 +43,7 @@
 	}
 	
 	async function init() {
-		env = load_env(ENV)
+        env = load_env(ENV)
         labels = load_labels(env[LABELS_NAME]).split("\r\n")
         console.log('labels ' + env[LABELS_NAME] + ' loaded.')
 	}
