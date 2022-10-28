@@ -22,16 +22,32 @@ modelin = None  # grpc
 modelout = None  # grpc
 channel = None  # grpc
 
-@app.route("/trees", methods=['GET'])
+@app.route("/trees", methods=['GET', 'POST'])
 def ask():
-    page = '''
-    <div id="select">Image:
-    <input type="file" id="select_img" name="imagefile" accept="image/*, capture=camera" onchange="preview()">
+    pred, conf, filename = '', '', ''
+    
+    if request.method == 'POST':
+        global restssl, resturl
+    
+        if None in [restssl, resturl]:
+            restssl = 's' if env['YOUR_REST_SSL'] else ''
+            resturl = f'http{restssl}://{env["YOUR_REST_HOST"]}:{env["YOUR_REST_PORT"]}/v1/models/{env["YOUR_MODEL_NAME"]}:predict'
+        
+        r = predict(api='rest')
+        pred = r['prediction']
+        conf = f"{r['confidence']:.4f}"
+    
+    page = f'''
+    <div id="select">
+        <form method="post" enctype="multipart/form-data">
+        Image: <input type="file" id="select_img" name="imagefile" accept="image/*, capture=camera">
+        <input type="submit" value="確定">
+        Prediction: <label id="pred">{pred}</label>/ Confidence: <label id="conf">{conf}</label>
+        </form>
     </div>
-    <div>Prediction: <label id="pred"></label>/ Confidence: <label id="conf"></label></div>
-    <br>
-    <img id="preview_img" /><br>
-
+    <br>'''
+    
+    style = '''
     <style type="text/css">
         div, input {
             font-size: 4vw;
@@ -43,40 +59,10 @@ def ask():
             width: 80%;
         }
     </style>
-    
-    <script language="javascript">    
-        function preview() {
-            if (!window.FileReader) {
-                console.log("no preview functionality supported by your browser!");
-                return;
-            }
-            
-            let reader = new FileReader();
-            reader.onload = function (event) {
-                let img = document.getElementById("preview_img");
-                img.src = event.target.result;
-                const payload = new FormData();
-                payload.append('imagefile', file, file.name);
-                fetch("trees", {method: "POST", body: payload})
-                    .then((response) => response.json())
-                    .then((data) => {
-                        document.getElementById("pred").innerHTML = data["prediction"]
-                        document.getElementById("conf").innerHTML = data["confidence"].toPrecision(4)
-                        console.log(data); 
-                    })
-                    .catch((error) => {
-                        console.log("Error: ${error}");
-                    })
-            };
-
-            let file = document.getElementById("select_img").files[0];
-            reader.readAsDataURL(file);
-        }
-    </script>
     '''
-    
-    return page
 
+    return page + style
+    
 @app.route("/treesr", methods=['GET'])
 def ask_rest():
     return gen_page(api='rest')
@@ -84,15 +70,18 @@ def ask_rest():
 @app.route("/treesg", methods=['GET'])
 def ask_grpc():
     return gen_page(api='grpc')
-
+    
 def gen_page(api='rest'):
     apimap = {'rest': 'treesr', 'grpc': 'treesg'}
     
+    # the ugly code below is for easy understanding, should be replaced by render_template()
     page1 = '''
-    <div id="select">Image:
-    <input type="file" id="select_img" name="imagefile" accept="image/*, capture=camera" onchange="preview()">
+    <div id="select">
+        Image: <input type="file" id="select_img" name="imagefile" accept="image/*, capture=camera" onchange="preview()">
     </div>
-    <div>Prediction: <label id="pred"></label>/ Confidence: <label id="conf"></label></div>
+    <div>
+        Prediction: <label id="pred"></label>/ Confidence: <label id="conf"></label>
+    </div>
     <br>
     <img id="preview_img" /><br>
 
@@ -140,7 +129,7 @@ def gen_page(api='rest'):
         }
     </script>
     '''
-    
+
     return page1 + page2 + page3
 
 @app.route("/treesr", methods=['POST'])
@@ -151,7 +140,7 @@ def predict_rest():
         restssl = 's' if env['YOUR_REST_SSL'] else ''
         resturl = f'http{restssl}://{env["YOUR_REST_HOST"]}:{env["YOUR_REST_PORT"]}/v1/models/{env["YOUR_MODEL_NAME"]}:predict'
     
-    return predict(api='rest')
+    return jsonify(predict(api='rest'))
     
 @app.route("/treesg", methods=['POST'])
 def predict_grpc():
@@ -169,22 +158,22 @@ def predict_grpc():
         else:
             channel = grpc.insecure_channel(grpcurl)
 
-    return predict(api='grpc')
+    return jsonify(predict(api='grpc'))
     
 def predict(api='rest'):
     data = {'prediction': None, 'confidence': None}
     
-    if request.method == 'POST':
-        file = request.files.get('imagefile')
-        if file:
-            apimap = {'rest': classify_rest, 'grpc': classify_grpc}
-            filename = secure_filename(file.filename)
-            print(f'got {filename}')
-            img = file.read()
-            img = Image.open(io.BytesIO(img))
-            data['prediction'], data['confidence'] = apimap[api](img)
+    file = request.files.get('imagefile')
+    
+    if file:
+        apimap = {'rest': classify_rest, 'grpc': classify_grpc}
+        filename = secure_filename(file.filename)
+        print(f'got {filename}')
+        img = file.read()
+        img = Image.open(io.BytesIO(img))
+        data['prediction'], data['confidence'] = apimap[api](img)
 
-    return jsonify(data)
+    return data
 
 def classify_grpc(img):
     import grpc
