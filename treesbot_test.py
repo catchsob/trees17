@@ -1,16 +1,9 @@
-import io
 import json
+from io import BytesIO
 
-import grpc
-import numpy as np
-from tensorflow_serving.apis import predict_pb2, prediction_service_pb2_grpc
-from tensorflow.core.framework import types_pb2
-from tensorflow.core.framework.tensor_shape_pb2 import TensorShapeProto
-from tensorflow.core.framework.tensor_pb2 import TensorProto
-
-from PIL import Image, ImageOps
 from flask import Flask, request, abort
-
+from PIL import Image, ImageOps
+import numpy as np
 from linebot import (
     LineBotApi, WebhookHandler
 )
@@ -21,6 +14,7 @@ from linebot.models import (
     MessageEvent, TextMessage, TextSendMessage, ImageMessage, QuickReply, QuickReplyButton, URIAction,
 )
 
+
 app = Flask(__name__)
 
 with open('env.json') as f:
@@ -28,18 +22,18 @@ with open('env.json') as f:
 line_bot_api = LineBotApi(env['YOUR_CHANNEL_ACCESS_TOKEN'])
 handler = WebhookHandler(env['YOUR_CHANNEL_SECRET'])
 label = env['YOUR_LABELS']
-res = 448
-grpcurl = f'{env["YOUR_GRPC_HOST"]}:{env["YOUR_GRPC_PORT"]}'
-ssl = env['YOUR_GRPC_SSL']
 model = env['YOUR_MODEL_NAME']
-modelin = env['YOUR_MODEL_IN']
-modelout = env['YOUR_MODEL_OUT']
+res = 448
+restssl = None  # rest
+resturl = None  # rest
+grpcssl = None  # grpc
+grpcurl = None  # grpc
+modelin = None  # grpc
+modelout = None  # grpc
+channel = None  # grpc
 web = env['YOUR_WEB_URI']
 tfjs = env['YOUR_TFJS_URI']
-if ssl:
-    channel = grpc.secure_channel(grpcurl, grpc.ssl_channel_credentials())
-else:
-    channel = grpc.insecure_channel(grpcurl)
+
 
 @app.route("/callback", methods=['POST'])
 def callback():
@@ -64,8 +58,10 @@ def callback():
 def handle_message(event):
     msg = TextSendMessage(text=event.message.text)
     if event.message.text == 'web':
-        items = [QuickReplyButton(action=URIAction(label='Web', uri=web)),
-                 QuickReplyButton(action=URIAction(label='TensorFlow.js', uri=tfjs))]
+        items = [QuickReplyButton(action=URIAction(label='Web', uri=env['YOUR_WEB_URI'])),
+                 QuickReplyButton(action=URIAction(label='LIFF Web', uri='https://liff.line.me/'+env['YOUR_LIFF_ID'])),
+                 QuickReplyButton(action=URIAction(label='TensorFlow.js', uri=env['YOUR_TFJS_URI']))
+                ]
         msg.quickReply = QuickReply(items=items)
     line_bot_api.reply_message(
         event.reply_token,
@@ -80,15 +76,55 @@ def handle_message(event):
     b = b''
     for chunk in message_content.iter_content():
         b += chunk
-    img = Image.open(io.BytesIO(b))
-    r = classify_grpc(img)
+    img = Image.open(BytesIO(b))
+    img = ImageOps.fit(img, (res, res))
+    r = classify_rest(img)
     line_bot_api.reply_message(
         event.reply_token,
         TextSendMessage(text=r))
 
 
+def classify_rest(img):
+    import requests
+    
+    global restssl, resturl
+    
+    if None in [restssl, resturl]:
+        restssl = 's' if env['YOUR_REST_SSL'] else ''
+        resturl = f'http{restssl}://{env["YOUR_REST_HOST"]}:{env["YOUR_REST_PORT"]}/v1/models/{model}:predict'
+    
+    img = np.expand_dims(img, axis=0)/255.
+    
+    headers = {"content-type": "application/json"}
+    data = json.dumps({"instances": img.tolist()})
+    r = requests.post(resturl, headers=headers, data=data)
+    
+    r = np.squeeze(r.json()['predictions'])
+    p = np.argmax(r)
+    with open(label, encoding='utf-8') as f:
+        labels = f.read().split()
+    return labels[p] if 0 <= p < len(labels) else 'unknown'
+
+
 def classify_grpc(img):
-    img = ImageOps.fit(img, (res, res))
+    import grpc
+    from tensorflow_serving.apis import predict_pb2, prediction_service_pb2_grpc
+    from tensorflow.core.framework import types_pb2
+    from tensorflow.core.framework.tensor_shape_pb2 import TensorShapeProto
+    from tensorflow.core.framework.tensor_pb2 import TensorProto
+    
+    global grpcssl, grpcurl, channel, modelin, modelout
+    
+    if None in [grpcssl, grpcurl, channel, modelin, modelout]:
+        grpcurl = f'{env["YOUR_GRPC_HOST"]}:{env["YOUR_GRPC_PORT"]}'
+        grpcssl = env['YOUR_GRPC_SSL']
+        modelin = env['YOUR_MODEL_IN']
+        modelout = env['YOUR_MODEL_OUT']
+        if grpcssl:
+            channel = grpc.secure_channel(grpcurl, grpc.ssl_channel_credentials())
+        else:
+            channel = grpc.insecure_channel(grpcurl)
+    
     img = (np.expand_dims(img, axis=0)/255.).astype(np.float32)
     stub = prediction_service_pb2_grpc.PredictionServiceStub(channel)
     req = predict_pb2.PredictRequest()

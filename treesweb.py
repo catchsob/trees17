@@ -1,5 +1,5 @@
-import io
 import json
+from io import BytesIO
 
 from flask import Flask, request, jsonify
 from werkzeug.utils import secure_filename
@@ -22,6 +22,7 @@ modelin = None  # grpc
 modelout = None  # grpc
 channel = None  # grpc
 
+
 @app.route("/trees", methods=['GET', 'POST'])
 def ask():
     pred, conf, filename = '', '', ''
@@ -31,7 +32,7 @@ def ask():
     
         if None in [restssl, resturl]:
             restssl = 's' if env['YOUR_REST_SSL'] else ''
-            resturl = f'http{restssl}://{env["YOUR_REST_HOST"]}:{env["YOUR_REST_PORT"]}/v1/models/{env["YOUR_MODEL_NAME"]}:predict'
+            resturl = f'http{restssl}://{env["YOUR_REST_HOST"]}:{env["YOUR_REST_PORT"]}/v1/models/{model}:predict'
         
         r = predict(api='rest')
         pred = r['prediction']
@@ -56,21 +57,71 @@ def ask():
             color: brown;
         }
         img {
-            width: 80%;
+            width: 100%;
         }
     </style>
     '''
 
     return page + style
-    
+
+
 @app.route("/treesr", methods=['GET'])
 def ask_rest():
     return gen_page(api='rest')
-    
+
+
+@app.route("/treesrliff", methods=['GET'])
+def ask_restliff():
+    return gen_liff() + gen_page(api='rest')
+
+
 @app.route("/treesg", methods=['GET'])
 def ask_grpc():
     return gen_page(api='grpc')
-    
+
+
+def gen_liff():
+    liffid = env['YOUR_LIFF_ID']
+
+    # the code below should be replaced by render_template()
+    liff_init = '<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>' + \
+                '<script>window.onload = function() {initLiff(' + f'"{liffid}"' + ')};</script>'
+
+    liff = '''
+    <div id='welcome'>
+        歡迎<img id="pic" /><label id="disp"></label><label id="uid"></label>光臨
+    </div><br>
+
+    <script>
+        function initLiff(lid) {
+            console.log(lid);
+            liff.init({
+                    liffId: lid
+                })
+                .then(() => {
+                    console.log('LIFF OK');
+                    if (!liff.isLoggedIn()) {
+                        liff.login();
+                    }
+
+                    liff.getProfile().then(function(profile) {
+                        let img = document.getElementById("pic")
+                        img.src = profile.pictureUrl;
+                        img.height = "100";
+                        img.width = "100";
+                        document.getElementById("disp").innerHTML = '&nbsp;' + profile.displayName;
+                        document.getElementById("uid").innerHTML = '&nbsp;' + profile.userId;
+                    });
+                })
+                .catch((err) => {
+                    console.log('LIFF failed! ' + err);
+                });
+        }
+    </script>'''
+
+    return liff_init + liff
+
+        
 def gen_page(api='rest'):
     apimap = {'rest': 'treesr', 'grpc': 'treesg'}
     
@@ -92,8 +143,12 @@ def gen_page(api='rest'):
         label {
             color: brown;
         }
-        img {
-            width: 80%;
+        #uid {
+            font-size: 3vw;
+            color: blue;
+        }
+        #preview_img {
+            width: 100%;
         }
     </style>
     
@@ -138,7 +193,7 @@ def predict_rest():
     
     if None in [restssl, resturl]:
         restssl = 's' if env['YOUR_REST_SSL'] else ''
-        resturl = f'http{restssl}://{env["YOUR_REST_HOST"]}:{env["YOUR_REST_PORT"]}/v1/models/{env["YOUR_MODEL_NAME"]}:predict'
+        resturl = f'http{restssl}://{env["YOUR_REST_HOST"]}:{env["YOUR_REST_PORT"]}/v1/models/{model}:predict'
     
     return jsonify(predict(api='rest'))
     
@@ -170,7 +225,8 @@ def predict(api='rest'):
         filename = secure_filename(file.filename)
         print(f'got {filename}')
         img = file.read()
-        img = Image.open(io.BytesIO(img))
+        img = Image.open(BytesIO(img))
+        img = ImageOps.fit(img, (res, res))
         data['prediction'], data['confidence'] = apimap[api](img)
 
     return data
@@ -182,7 +238,6 @@ def classify_grpc(img):
     from tensorflow.core.framework.tensor_shape_pb2 import TensorShapeProto
     from tensorflow.core.framework.tensor_pb2 import TensorProto
     
-    img = ImageOps.fit(img, (res, res))
     img = (np.expand_dims(img, axis=0)/255.).astype(np.float32)
     
     stub = prediction_service_pb2_grpc.PredictionServiceStub(channel)
@@ -203,7 +258,6 @@ def classify_grpc(img):
 def classify_rest(img):
     import requests
 
-    img = ImageOps.fit(img, (res, res))
     img = np.expand_dims(img, axis=0)/255.
     
     headers = {"content-type": "application/json"}
