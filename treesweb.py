@@ -70,56 +70,9 @@ def ask_rest():
     return gen_page(api='rest')
 
 
-@app.route("/treesrliff", methods=['GET'])
-def ask_restliff():
-    return gen_liff() + gen_page(api='rest')
-
-
 @app.route("/treesg", methods=['GET'])
 def ask_grpc():
     return gen_page(api='grpc')
-
-
-def gen_liff():
-    liffid = env['YOUR_LIFF_ID']
-
-    # the code below should be replaced by render_template()
-    liff_init = '<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>' + \
-                '<script>window.onload = function() {initLiff(' + f'"{liffid}"' + ')};</script>'
-
-    liff = '''
-    <div id='welcome'>
-        歡迎<img id="pic" /><label id="disp"></label><label id="uid"></label>光臨
-    </div><br>
-
-    <script>
-        function initLiff(lid) {
-            console.log(lid);
-            liff.init({
-                    liffId: lid
-                })
-                .then(() => {
-                    console.log('LIFF OK');
-                    if (!liff.isLoggedIn()) {
-                        liff.login();
-                    }
-
-                    liff.getProfile().then(function(profile) {
-                        let img = document.getElementById("pic")
-                        img.src = profile.pictureUrl;
-                        img.height = "100";
-                        img.width = "100";
-                        document.getElementById("disp").innerHTML = '&nbsp;' + profile.displayName;
-                        document.getElementById("uid").innerHTML = '&nbsp;' + profile.userId;
-                    });
-                })
-                .catch((err) => {
-                    console.log('LIFF failed! ' + err);
-                });
-        }
-    </script>'''
-
-    return liff_init + liff
 
         
 def gen_page(api='rest'):
@@ -143,11 +96,7 @@ def gen_page(api='rest'):
         label {
             color: brown;
         }
-        #uid {
-            font-size: 3vw;
-            color: blue;
-        }
-        #preview_img {
+        img {
             width: 100%;
         }
     </style>
@@ -187,6 +136,7 @@ def gen_page(api='rest'):
 
     return page1 + page2 + page3
 
+
 @app.route("/treesr", methods=['POST'])
 def predict_rest():
     global restssl, resturl
@@ -196,7 +146,8 @@ def predict_rest():
         resturl = f'http{restssl}://{env["YOUR_REST_HOST"]}:{env["YOUR_REST_PORT"]}/v1/models/{model}:predict'
     
     return jsonify(predict(api='rest'))
-    
+
+
 @app.route("/treesg", methods=['POST'])
 def predict_grpc():
     import grpc
@@ -214,7 +165,8 @@ def predict_grpc():
             channel = grpc.insecure_channel(grpcurl)
 
     return jsonify(predict(api='grpc'))
-    
+
+
 def predict(api='rest'):
     data = {'prediction': None, 'confidence': None}
     
@@ -230,6 +182,7 @@ def predict(api='rest'):
         data['prediction'], data['confidence'] = apimap[api](img)
 
     return data
+
 
 def classify_grpc(img):
     import grpc
@@ -255,6 +208,7 @@ def classify_grpc(img):
         labels = f.read().split()
     return labels[p] if 0 <= p < len(labels) else 'unknown', r[p]
 
+
 def classify_rest(img):
     import requests
 
@@ -269,6 +223,7 @@ def classify_rest(img):
     with open(label, encoding='utf-8') as f:
         labels = f.read().split()
     return labels[p] if 0 <= p < len(labels) else 'unknown', r[p]
+
 
 if __name__ == '__main__':
     app.run()
