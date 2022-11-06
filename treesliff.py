@@ -39,6 +39,7 @@ def ask():
         conf = f"{r['confidence']:.4f}"
     
     page = f'''
+    <title>Trees Web</title>
     <div id="select">
         <form method="post" enctype="multipart/form-data">
         Image: <input type="file" id="select_img" name="imagefile" accept="image/*, capture=camera">
@@ -67,17 +68,17 @@ def ask():
 
 @app.route("/treesr", methods=['GET'])
 def ask_rest():
-    return gen_page(api='rest')
+    return '<title>Trees REST</title><br>' + gen_page(api='rest')
 
 
 @app.route("/treesrliff", methods=['GET'])
 def ask_restliff():
-    return gen_liff() + gen_page(api='rest')
+    return '<title>Trees REST LIFF</title><br>' + gen_liff() + gen_page(api='rest')
 
 
 @app.route("/treesg", methods=['GET'])
 def ask_grpc():
-    return gen_page(api='grpc')
+    return '<title>Trees gRPC</title><br>' + gen_page(api='grpc')
 
 
 def gen_liff():
