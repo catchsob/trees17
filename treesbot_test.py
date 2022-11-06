@@ -11,7 +11,8 @@ from linebot.exceptions import (
     InvalidSignatureError
 )
 from linebot.models import (
-    MessageEvent, TextMessage, TextSendMessage, ImageMessage, QuickReply, QuickReplyButton, URIAction,
+    MessageEvent, TextMessage, TextSendMessage, ImageMessage, QuickReply, QuickReplyButton,
+    URIAction, CameraAction, CameraRollAction
 )
 
 
@@ -57,10 +58,12 @@ def callback():
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     msg = TextSendMessage(text=event.message.text)
-    if event.message.text == 'web':
-        items = [QuickReplyButton(action=URIAction(label='Web', uri=env['YOUR_WEB_URI'])),
-                 QuickReplyButton(action=URIAction(label='LIFF Web', uri='https://liff.line.me/'+env['YOUR_LIFF_ID'])),
-                 QuickReplyButton(action=URIAction(label='TensorFlow.js', uri=env['YOUR_TFJS_URI']))
+    if event.message.text == 'fn':
+        items = [QuickReplyButton(action=CameraAction(label='Cam')),
+                 QuickReplyButton(action=CameraRollAction(label='Pic')),
+                 QuickReplyButton(action=URIAction(label='Web', uri=env['YOUR_WEB_URI'])),
+                 QuickReplyButton(action=URIAction(label='LIFF', uri='https://liff.line.me/'+env['YOUR_LIFF_ID'])),
+                 QuickReplyButton(action=URIAction(label='TF.js', uri=env['YOUR_TFJS_URI']))
                 ]
         msg.quickReply = QuickReply(items=items)
     line_bot_api.reply_message(
