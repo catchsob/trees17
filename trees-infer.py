@@ -94,7 +94,7 @@ def label(labels, preds):
 infermap = {'h5': infer_h5, 'onnx': infer_onnx, 'tflite': infer_tflite, 'trt': infer_trt}
 parser = argparse.ArgumentParser()
 parser.add_argument('model', type=str)
-parser.add_argument('trees', type=str, nargs='+', help='image files of trees to be classified, seperated by common')
+parser.add_argument('trees', type=str, nargs='+', help='image files of trees to be classified, seperated by space')
 parser.add_argument('-f', '--model_format', type=str, choices=infermap.keys(), help='format of model')
 parser.add_argument('-l', '--labels', type=str, help='file for prediction-label mapping')
 parser.add_argument('-p', '--precision', type=str, default='float32', choices=['float16', 'float32'], help='default float32')
