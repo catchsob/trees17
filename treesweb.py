@@ -13,6 +13,8 @@ with open('env.json') as f:
     env = json.load(f)
 label = env['YOUR_LABELS']
 model = env['YOUR_MODEL_NAME']
+model_file = env['YOUR_MODEL_FILE']
+model_local = None
 res = 448
 restssl = None  # rest
 resturl = None  # rest
@@ -21,6 +23,24 @@ grpcurl = None  # grpc
 modelin = None  # grpc
 modelout = None  # grpc
 channel = None  # grpc
+
+STYLE = '''
+<style type="text/css">
+    div, input {
+        font-size: 4vw;
+    }
+    label {
+        color: brown;
+    }
+    img {
+        width: 100%;
+    }
+</style>
+'''
+
+@app.route("/treesl", methods=['GET'])
+def local():
+    return '<title>Trees Local</title><br>' + gen_page(api='local')
 
 
 @app.route("/trees", methods=['GET', 'POST'])
@@ -48,22 +68,8 @@ def ask():
         </form>
     </div>
     <br>'''
-    
-    style = '''
-    <style type="text/css">
-        div, input {
-            font-size: 4vw;
-        }
-        label {
-            color: brown;
-        }
-        img {
-            width: 100%;
-        }
-    </style>
-    '''
 
-    return page + style
+    return page + STYLE
 
 
 @app.route("/treesr", methods=['GET'])
@@ -77,7 +83,7 @@ def ask_grpc():
 
         
 def gen_page(api='rest'):
-    apimap = {'rest': 'treesr', 'grpc': 'treesg'}
+    apimap = {'rest': 'treesr', 'grpc': 'treesg', 'local': 'treesl'}
     
     # the ugly code below is for easy understanding, should be replaced by render_template()
     page1 = '''
@@ -89,18 +95,6 @@ def gen_page(api='rest'):
     </div>
     <br>
     <img id="preview_img" /><br>
-
-    <style type="text/css">
-        div, input {
-            font-size: 4vw;
-        }
-        label {
-            color: brown;
-        }
-        img {
-            width: 100%;
-        }
-    </style>
     
     <script language="javascript">    
         function preview() {
@@ -125,7 +119,7 @@ def gen_page(api='rest'):
                         console.log(data); 
                     })
                     .catch((error) => {
-                        console.log("Error: ${error}");
+                        console.log("Error:", error);
                     })
             };
 
@@ -135,7 +129,35 @@ def gen_page(api='rest'):
     </script>
     '''
 
-    return page1 + page2 + page3
+    return page1 + page2 + page3 + STYLE
+
+
+@app.route("/treesl", methods=['POST'])
+def predict_local():
+    from tensorflow.keras.models import load_model
+
+    global model_local
+    
+    data = {'prediction': None, 'confidence': None}
+    file = request.files.get('imagefile')
+    
+    if not model_local:
+        model_local = load_model(model_file)
+    
+    if file:
+        filename = secure_filename(file.filename)
+        print(f'got {filename}')
+        img = file.read()
+        img = Image.open(BytesIO(img))
+        img = ImageOps.fit(img, (res, res))
+        prediction = model_local.predict(np.expand_dims(img, axis=0)/255.)[0]
+        p = np.argmax(prediction)
+        with open(label, encoding='utf-8') as f:
+            labels = f.read().split()
+        data['prediction'] = labels[p] if 0 <= p < len(labels) else str(p)
+        data['confidence'] = prediction[p].astype(float)
+        
+    return jsonify(data)
 
 
 @app.route("/treesr", methods=['POST'])
@@ -207,7 +229,7 @@ def classify_grpc(img):
     p = np.argmax(r)
     with open(label, encoding='utf-8') as f:
         labels = f.read().split()
-    return labels[p] if 0 <= p < len(labels) else 'unknown', r[p]
+    return labels[p] if 0 <= p < len(labels) else str(p), r[p]
 
 
 def classify_rest(img):
@@ -223,7 +245,7 @@ def classify_rest(img):
     p = np.argmax(r)
     with open(label, encoding='utf-8') as f:
         labels = f.read().split()
-    return labels[p] if 0 <= p < len(labels) else 'unknown', r[p]
+    return labels[p] if 0 <= p < len(labels) else str(p), r[p]
 
 
 if __name__ == '__main__':
