@@ -27,33 +27,34 @@
     let env;
     let model = null;
     let labels;
-	let video;
-	let canvas;
-	let cam;
-	let liveapp;
-	let info = 'loading...';
-	let infocolor = 'black';
+    let video;
+    let canvas;
+    let cam;
+    let liveapp;
+    let info = 'loading...';
+    let infocolor = 'black';
     let live = false;
-	let liveview;
-	
-	function golive() {
-		live = !live;
-		if (live) {
-			document.getElementById("preview_img").style.visibility = 'hidden';
-			initlive();
-		}
-		else {
-			liveapp.removeChild(liveview);
-			liveview = null;
-			if (video.src.active) {
-				video.src.stop();
-			}
-			video = null;
-			cnavas = null;
-			document.getElementById("preview_img").style.visibility = 'visible';
-		}
-	}
-	
+    let liveview;
+    let count = 0;
+    
+    function golive() {
+        live = !live;
+        if (live) {
+            document.getElementById("preview_img").style.visibility = 'hidden';
+            initlive();
+        }
+        else {
+            liveapp.removeChild(liveview);
+            liveview = null;
+            if (video.src.active) {
+                video.src.stop();
+            }
+            video = null;
+            cnavas = null;
+            document.getElementById("preview_img").style.visibility = 'visible';
+        }
+    }
+    
     function preview() {
         if (!window.FileReader) {
             console.log('no preview functionality supported by your browser!');
@@ -69,22 +70,21 @@
 
         let file = document.getElementById("select_img").files[0];
         reader.readAsDataURL(file);
-	}
-	
-	async function init() {
-		console.log('start ...')
-        env = load_env(ENV)
-		//model = await tf.loadGraphModel(env[MODEL_NAME]);
-		//model.predict(tf.zeros([1, IMAGE_SIZE, IMAGE_SIZE, 3])).dispose();
-		//console.log('model ' + env[MODEL_NAME] + ' loaded.')
-        labels = load_labels(env[LABELS_NAME]).split("\r\n")
-        console.log('labels ' + env[LABELS_NAME] + ' loaded.')
-	}
+    }
+    
+    async function init() {
+        console.log('start ...');
+        env = load_env(ENV);
+        labels = load_labels(env[LABELS_NAME]).split("\r\n");
+        console.log('labels ' + env[LABELS_NAME] + ' loaded.');
+    }
     
     async function predict(imgElement) {
-		model = await tf.loadGraphModel(env[MODEL_NAME]);
-		//console.log('model ' + env[MODEL_NAME] + ' loaded.')
-		
+        if (!model) {
+            model = await tf.loadGraphModel(env[MODEL_NAME]);
+            //console.log('model ' + env[MODEL_NAME] + ' loaded.');
+        }
+        
         const logits = tf.tidy(() => {
             const img = tf.cast(tf.browser.fromPixels(imgElement).resizeBilinear([IMAGE_SIZE, IMAGE_SIZE]), 'float32');
             const offset = tf.scalar(255.0);
@@ -99,28 +99,29 @@
         for (let i = 0; i < values.length; i++) {
             if (values[i] > v) {
                 v = values[i];
-                p = i
+                p = i;
             }
         }
-        document.getElementById("pred").innerHTML = labels[p]
-		info = labels[p]
-        document.getElementById("conf").innerHTML = v.toPrecision(4)
-		if (v > 0.9) {
-			infocolor = "green";
-		}
-		else if (v > 0.7) {
-			infocolor = "yellow";
-		}
-		else if (v > 0.5) {
-			infocolor = "red";
-		}
-		else {
-			infocolor = "black";
-		}
+        document.getElementById("pred").innerHTML = labels[p];
+        info = labels[p];
+        document.getElementById("conf").innerHTML = v.toPrecision(4);
+        if (v > 0.9) {
+            infocolor = "green";
+        }
+        else if (v > 0.7) {
+            infocolor = "yellow";
+        }
+        else if (v > 0.5) {
+            infocolor = "red";
+        }
+        else {
+            infocolor = "black";
+        }
         console.log({value: v, index: p, label: labels[p]});
+        logits.dispose(); // prevent from WebGL memory leak
     }
     
-	function load_file(filePath) {
+    function load_file(filePath) {
         var result = null;
         var xmlhttp = new XMLHttpRequest();
         xmlhttp.open("GET", filePath, false);
@@ -130,18 +131,18 @@
         }
         return result;
     }
-	
-	function load_labels(filePath) {
+    
+    function load_labels(filePath) {
         return load_file(filePath);
     }
-	
-	function load_env(filePath) {
-		return JSON.parse(load_file(filePath));
+    
+    function load_env(filePath) {
+        return JSON.parse(load_file(filePath));
     }
     
-	//init().then(()=>{
-	//   console.log('init finished!')
-	//});
+    //init().then(()=>{
+    //   console.log('init finished!')
+    //});
 
     const constraints = {
       audio: false,
@@ -151,18 +152,18 @@
     };
     
     const getFrameFromVideo = (video, canvas) => {
-	    if (!live) {
-			return;
-		}
+        if (!live) {
+            return;
+        }
         const ctx = canvas.getContext("2d");
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.save();
+        //ctx.save();
         ctx.drawImage(video, 0, 0, video.width, video.height);
         predict(video);
         ctx.font = "80px serif";
-	    ctx.fillStyle = infocolor;
+        ctx.fillStyle = infocolor;
         ctx.fillText(info, 50, 100);
-        ctx.restore();
+        //ctx.restore();
         requestAnimationFrame(() => getFrameFromVideo(video, canvas));
     };
     
@@ -171,7 +172,7 @@
         .getUserMedia(constraints)
         .then(function success(stream) {
           video.srcObject = stream;
-		  cam = stream;
+          cam = stream;
         });
     };
     
@@ -194,15 +195,16 @@
     };
     
     const initlive = () => {
-		console.log('initializing live ...')
+        console.log('initializing live ...')
         video = createVideo("vid", 800, 800);
         canvas = createCanvas("canvas", 800, 800);
         liveapp = document.getElementById("live");
         getCameraStream(video);
-        getFrameFromVideo(video, canvas);
-        //app.appendChild(video);
-        liveview = liveapp.appendChild(canvas);
-        console.log("live initialized.");
+        video.onloadeddata = (event) => {
+            getFrameFromVideo(video, canvas);
+            liveview = liveapp.appendChild(canvas);
+            console.log("live initialized.");
+        };
     };
     
     document.getElementById("select").onload = init();
