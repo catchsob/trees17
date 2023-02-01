@@ -1,7 +1,7 @@
 <title>Trees TF.js</title>
 <div id="select">Image: <input type="file" id="select_img" accept="image/*, capture=camera" onchange="preview()"></div>
 <div>Prediction: <label id="pred"></label>/ Confidence: <label id="conf"></label></div>
-<input id="livebutton" type="button" value="live" onclick="golive()">
+<input id="livebutton" type="button" value="live" onclick="goLive()">
 <div id="live"></div>
 <br>
 <img id="preview_img" /><br>
@@ -28,24 +28,29 @@
     let model = null;
     let labels;
     let video;
+    let track = null;
     let canvas;
-    let cam;
     let liveapp;
     let info = 'loading...';
     let infocolor = 'black';
     let live = false;
-    let liveview;
-    let count = 0;
+    let liveview = null;
     
-    function golive() {
+    function goLive() {
         live = !live;
         if (live) {
             document.getElementById("preview_img").style.visibility = 'hidden';
-            initlive();
+            initLive();
         }
         else {
-            liveapp.removeChild(liveview);
-            liveview = null;
+            if (liveview != null) {
+                liveapp.removeChild(liveview);
+                liveview = null;
+            }
+            if (track != null) {  // release camera
+                track.stop();
+                track = null;
+            }
             if (video.src.active) {
                 video.src.stop();
             }
@@ -65,7 +70,9 @@
         reader.onload = function (event) {
             let img = document.getElementById("preview_img");
             img.src = event.target.result;
-            predict(img);
+            img.onload = () => {  // wait for img be loaded, or img will be all zeros
+                predict(img);
+            }
         };
 
         let file = document.getElementById("select_img").files[0];
@@ -74,17 +81,14 @@
     
     async function init() {
         console.log('start ...');
-        env = load_env(ENV);
-        labels = load_labels(env[LABELS_NAME]).split("\r\n");
+        env = loadEnv(ENV);
+        labels = loadLabels(env[LABELS_NAME]).split("\r\n");
         console.log('labels ' + env[LABELS_NAME] + ' loaded.');
+        model = await tf.loadGraphModel(env[MODEL_NAME]);
+        console.log('model ' + env[MODEL_NAME] + ' loaded.');
     }
     
     async function predict(imgElement) {
-        if (!model) {
-            model = await tf.loadGraphModel(env[MODEL_NAME]);
-            //console.log('model ' + env[MODEL_NAME] + ' loaded.');
-        }
-        
         const logits = tf.tidy(() => {
             const img = tf.cast(tf.browser.fromPixels(imgElement).resizeBilinear([IMAGE_SIZE, IMAGE_SIZE]), 'float32');
             const offset = tf.scalar(255.0);
@@ -119,9 +123,10 @@
         }
         console.log({value: v, index: p, label: labels[p]});
         logits.dispose(); // prevent from WebGL memory leak
+        //console.log(tf.memory());
     }
     
-    function load_file(filePath) {
+    function loadFile(filePath) {
         var result = null;
         var xmlhttp = new XMLHttpRequest();
         xmlhttp.open("GET", filePath, false);
@@ -132,23 +137,19 @@
         return result;
     }
     
-    function load_labels(filePath) {
-        return load_file(filePath);
+    function loadLabels(filePath) {
+        return loadFile(filePath);
     }
     
-    function load_env(filePath) {
-        return JSON.parse(load_file(filePath));
+    function loadEnv(filePath) {
+        return JSON.parse(loadFile(filePath));
     }
-    
-    //init().then(()=>{
-    //   console.log('init finished!')
-    //});
 
     const constraints = {
-      audio: false,
-      video: {
-        facingMode: "environment" // user or environment
-      }
+        audio: false,
+        video: {
+            facingMode: "environment" // user or environment
+        }
     };
     
     const getFrameFromVideo = (video, canvas) => {
@@ -167,44 +168,43 @@
         requestAnimationFrame(() => getFrameFromVideo(video, canvas));
     };
     
-    const getCameraStream = video => {
-      navigator.mediaDevices
-        .getUserMedia(constraints)
-        .then(function success(stream) {
-          video.srcObject = stream;
-          cam = stream;
-        });
-    };
-    
     const createVideo = (id, width, height) => {
-      const video = document.createElement("video");
-      video.id = id;
-      video.width = width;
-      video.height = height;
-      video.autoplay = true;
-      //video.controls = true;
-      return video;
+        const video = document.createElement("video");
+        video.id = id;
+        video.width = width;
+        video.height = height;
+        video.autoplay = true;
+        return video;
     };
     
     const createCanvas = (id, width, height) => {
-      const canvas = document.createElement("canvas");
-      canvas.id = id;
-      canvas.width = width;
-      canvas.height = height;
-      return canvas;
+        const canvas = document.createElement("canvas");
+        canvas.id = id;
+        canvas.width = width;
+        canvas.height = height;
+        return canvas;
     };
     
-    const initlive = () => {
+    const initLive = () => {
         console.log('initializing live ...')
         video = createVideo("vid", 800, 800);
         canvas = createCanvas("canvas", 800, 800);
         liveapp = document.getElementById("live");
-        getCameraStream(video);
-        video.onloadeddata = (event) => {
-            getFrameFromVideo(video, canvas);
-            liveview = liveapp.appendChild(canvas);
-            console.log("live initialized.");
-        };
+        navigator.mediaDevices
+            .getUserMedia(constraints)
+            .then((stream) => {
+                video.srcObject = stream;
+                track = stream.getTracks()[0];  // keep for stop the stream when live be turned off
+                video.onloadeddata = (event) => {
+                    getFrameFromVideo(video, canvas);
+                    liveview = liveapp.appendChild(canvas);
+                    console.log("live initialized.");
+                } 
+            })
+            .catch((error) => {  // open camera error
+                console.log(error + ", please check your camera!");
+                goLive();  // reset screen
+            });
     };
     
     document.getElementById("select").onload = init();
