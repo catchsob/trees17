@@ -24,7 +24,7 @@
     const LABELS_NAME = 'YOUR_LABELS';
     const IMAGE_SIZE = 448;
     let env;
-    let model = null;
+    let model;
     let labels;
     
     function preview() {
@@ -37,7 +37,9 @@
         reader.onload = function (event) {
             let img = document.getElementById("preview_img");
             img.src = event.target.result;
-            predict(img);
+            img.onload = () => {  // wait for img be loaded, or img will be all zeros
+                predict(img);
+            }
         };
 
         let file = document.getElementById("select_img").files[0];
@@ -47,17 +49,13 @@
 	async function init() {
 		console.log('start ...')
         env = load_env(ENV)
-		//model = await tf.loadGraphModel(env[MODEL_NAME]);
-		//model.predict(tf.zeros([1, IMAGE_SIZE, IMAGE_SIZE, 3])).dispose();
-		//console.log('model ' + env[MODEL_NAME] + ' loaded.')
+		model = await tf.loadGraphModel(env[MODEL_NAME]);
+		console.log('model ' + env[MODEL_NAME] + ' loaded.')
         labels = load_labels(env[LABELS_NAME]).split("\r\n")
         console.log('labels ' + env[LABELS_NAME] + ' loaded.')
 	}
     
     async function predict(imgElement) {
-		model = await tf.loadGraphModel(env[MODEL_NAME]);
-		console.log('model ' + env[MODEL_NAME] + ' loaded.')
-		
         const logits = tf.tidy(() => {
             const img = tf.cast(tf.browser.fromPixels(imgElement).resizeBilinear([IMAGE_SIZE, IMAGE_SIZE]), 'float32');
             const offset = tf.scalar(255.0);
@@ -78,6 +76,7 @@
         document.getElementById("pred").innerHTML = labels[p]
         document.getElementById("conf").innerHTML = v.toPrecision(4)
         console.log({value: v, index: p, label: labels[p]});
+        logits.dispose(); // prevent from WebGL memory leak
     }
     
 	function load_file(filePath) {
@@ -99,7 +98,7 @@
 		return JSON.parse(load_file(filePath));
     }
     
-	init().then(()=>{
+	init().then(() => {
 	    console.log('init finished!')
 	});
 </script>
