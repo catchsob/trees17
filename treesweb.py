@@ -33,7 +33,8 @@ STYLE = '''
         color: brown;
     }
     img {
-        width: 100%;
+        width: 100vmin;
+        height: auto;
     }
 </style>
 '''
