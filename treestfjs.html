@@ -12,7 +12,8 @@
         color: brown;
     }
     img {
-        width: 100%;
+        width: 100vmin;
+        height: auto;
     }
 </style>
 
@@ -44,16 +45,16 @@
 
         let file = document.getElementById("select_img").files[0];
         reader.readAsDataURL(file);
-	}
-	
-	async function init() {
-		console.log('start ...')
+    }
+    
+    async function init() {
+        console.log('start ...')
         env = load_env(ENV)
-		model = await tf.loadGraphModel(env[MODEL_NAME]);
-		console.log('model ' + env[MODEL_NAME] + ' loaded.')
+        model = await tf.loadGraphModel(env[MODEL_NAME]);
+        console.log('model ' + env[MODEL_NAME] + ' loaded.')
         labels = load_labels(env[LABELS_NAME]).split("\r\n")
         console.log('labels ' + env[LABELS_NAME] + ' loaded.')
-	}
+    }
     
     async function predict(imgElement) {
         const logits = tf.tidy(() => {
@@ -79,26 +80,26 @@
         logits.dispose(); // prevent from WebGL memory leak
     }
     
-	function load_file(filePath) {
+    function load_file(filePath) {
         var result = null;
         var xmlhttp = new XMLHttpRequest();
         xmlhttp.open("GET", filePath, false);
         xmlhttp.send();
-        if (xmlhttp.status==200) {
+        if (xmlhttp.status == 200) {
             result = xmlhttp.responseText;
         }
         return result;
     }
-	
-	function load_labels(filePath) {
+    
+    function load_labels(filePath) {
         return load_file(filePath);
     }
-	
-	function load_env(filePath) {
-		return JSON.parse(load_file(filePath));
+    
+    function load_env(filePath) {
+        return JSON.parse(load_file(filePath));
     }
     
-	init().then(() => {
-	    console.log('init finished!')
-	});
+    init().then(() => {
+        console.log('init finished!')
+    });
 </script>
