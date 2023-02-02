@@ -1,10 +1,9 @@
-<title>Trees TF.js</title>
-<div id="select">Image: <input type="file" id="select_img" accept="image/*, capture=camera" onchange="preview()"></div>
+<title>Trees Live</title>
+<div id="select">Image: <input type="file" id="select_img" accept="image/*, capture=camera" onchange="doPreview()"></div>
 <div>Prediction: <label id="pred"></label>/ Confidence: <label id="conf"></label></div>
-<input id="livebutton" type="button" value="live" onclick="goLive()">
-<div id="live"></div>
+<div id="livecontrol"><input id="livebutton" type="button" value="go live!" onclick="goLive()"></div>
 <br>
-<img id="preview_img" /><br>
+<div id="show"></div>
 
 <style type="text/css">
     div, input {
@@ -13,9 +12,9 @@
     label {
         color: brown;
     }
-    img {
+    #show {
         width: 100vmin;
-        height: auto;
+        height: 100vmin;
     }
 </style>
 
@@ -28,26 +27,36 @@
     let env;
     let model = null;
     let labels;
-    let video;
+    let img = null;
+    let video = null;
     let track = null;
-    let canvas;
-    let liveapp;
+    let canvas = null;
+    let showing = null;
+    const show = document.getElementById("show");
     let info = 'loading...';
     let infocolor = 'black';
-    let live = false;
-    let liveview = null;
+    let streaming = false;
+    let liveinfo = null;  // for live error message
+    let liveinfoview = null;
+    const livecontrol = document.getElementById("livecontrol");
     
     function goLive() {
-        live = !live;
-        if (live) {
-            document.getElementById("preview_img").style.visibility = 'hidden';
+        const livebutton = document.getElementById("livebutton");
+    
+        streaming = !streaming;
+        if (showing) {
+            show.removeChild(showing);
+            showing = null;
+        }
+        if (streaming) {
             initLive();
+            livebutton.value = 'streaming';
+            if (liveinfoview != null) { // remove previous error message
+                livecontrol.removeChild(liveinfoview);
+                liveinfoview = null;
+            }
         }
         else {
-            if (liveview != null) {
-                liveapp.removeChild(liveview);
-                liveview = null;
-            }
             if (track != null) {  // release camera
                 track.stop();
                 track = null;
@@ -57,11 +66,16 @@
             }
             video = null;
             cnavas = null;
-            document.getElementById("preview_img").style.visibility = 'visible';
+            livebutton.value = 'go live!';
+            if (liveinfo != null) { // show error message while go live failed
+                const livecontrolinfo = document.createElement("livecontrolinfo");
+                livecontrolinfo.textContent = liveinfo;
+                liveinfoview = livecontrol.appendChild(livecontrolinfo);
+            }
         }
     }
     
-    function preview() {
+    function doPreview() {
         if (!window.FileReader) {
             console.log('no preview functionality supported by your browser!');
             return;
@@ -69,10 +83,11 @@
         
         let reader = new FileReader();
         reader.onload = function (event) {
-            let img = document.getElementById("preview_img");
             img.src = event.target.result;
+            //console.log(img);
             img.onload = () => {  // wait for img be loaded, or img will be all zeros
-                predict(img);
+                showing = show.appendChild(img);
+                doPredict(img);
             }
         };
 
@@ -82,6 +97,7 @@
     
     async function init() {
         console.log('start ...');
+        img = createImg("preview_img", show.offsetWidth, show.offsetHeight);
         env = loadEnv(ENV);
         labels = loadLabels(env[LABELS_NAME]).split("\r\n");
         console.log('labels ' + env[LABELS_NAME] + ' loaded.');
@@ -89,7 +105,7 @@
         console.log('model ' + env[MODEL_NAME] + ' loaded.');
     }
     
-    async function predict(imgElement) {
+    async function doPredict(imgElement) {
         const logits = tf.tidy(() => {
             const img = tf.cast(tf.browser.fromPixels(imgElement).resizeBilinear([IMAGE_SIZE, IMAGE_SIZE]), 'float32');
             const offset = tf.scalar(255.0);
@@ -132,7 +148,7 @@
         var xmlhttp = new XMLHttpRequest();
         xmlhttp.open("GET", filePath, false);
         xmlhttp.send();
-        if (xmlhttp.status==200) {
+        if (xmlhttp.status == 200) {
             result = xmlhttp.responseText;
         }
         return result;
@@ -154,19 +170,26 @@
     };
     
     const getFrameFromVideo = (video, canvas) => {
-        if (!live) {
-            return;
+        if (streaming) {
+            const ctx = canvas.getContext("2d");
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            //ctx.save();
+            ctx.drawImage(video, 0, 0, video.width, video.height);
+            doPredict(video);
+            ctx.font = "80px serif";
+            ctx.fillStyle = infocolor;
+            ctx.fillText(info, 50, 100);
+            //ctx.restore();
+            requestAnimationFrame(() => getFrameFromVideo(video, canvas));
         }
-        const ctx = canvas.getContext("2d");
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        //ctx.save();
-        ctx.drawImage(video, 0, 0, video.width, video.height);
-        predict(video);
-        ctx.font = "80px serif";
-        ctx.fillStyle = infocolor;
-        ctx.fillText(info, 50, 100);
-        //ctx.restore();
-        requestAnimationFrame(() => getFrameFromVideo(video, canvas));
+    };
+    
+    const createImg = (id, width, height) => {
+        const img = document.createElement("img");
+        img.id = id;
+        img.width = width;
+        img.height = height;
+        return img;
     };
     
     const createVideo = (id, width, height) => {
@@ -188,9 +211,9 @@
     
     const initLive = () => {
         console.log('initializing live ...')
-        video = createVideo("vid", 800, 800);
-        canvas = createCanvas("canvas", 800, 800);
-        liveapp = document.getElementById("live");
+        video = createVideo("video", show.offsetWidth, show.offsetHeight);
+        canvas = createCanvas("canvas", show.offsetWidth, show.offsetHeight);
+        //console.log(show.offsetWidth, show.offsetHeight);
         navigator.mediaDevices
             .getUserMedia(constraints)
             .then((stream) => {
@@ -198,12 +221,14 @@
                 track = stream.getTracks()[0];  // keep for stop the stream when live be turned off
                 video.onloadeddata = (event) => {
                     getFrameFromVideo(video, canvas);
-                    liveview = liveapp.appendChild(canvas);
+                    showing = show.appendChild(canvas);
+                    liveinfo = null;
                     console.log("live initialized.");
                 } 
             })
             .catch((error) => {  // open camera error
-                console.log(error + ", please check your camera!");
+                liveinfo = 'please check your camera!';
+                console.log(error + ", " + liveinfo);
                 goLive();  // reset screen
             });
     };
