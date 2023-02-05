@@ -46,7 +46,6 @@
         canvas = document.getElementById("canvas");
         canvas.width = show.offsetWidth;  // canvas width and height have to set here
         canvas.height = show.offsetHeight;
-        console.log(canvas.width, canvas.height);
         ctx = canvas.getContext("2d", {willReadFrequently: true});
         env = loadEnv(ENV);
         labels = loadLabels(env[LABELS_NAME]).split("\r\n");
@@ -76,7 +75,7 @@
         img.src = imgSrc;
         
         img.onload = () => {  // wait for img be loaded, or img will be all zeros
-            console.log(img.naturalWidth, img.naturalHeight);
+            //console.log(img.naturalWidth, img.naturalHeight);
             let w = img.naturalWidth;
             let x = 0;
             let y = 0;
@@ -91,13 +90,13 @@
             }
             ctx.drawImage(img, x, y, w, w, 0, 0, canvas.width, canvas.height);
             var cropImg = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            // return image or get canvas image will fail; doPredict will be OK. Strange
+            // return image and then get canvas image will be failed;
+            // doPredict() here would be OK. Should check this later.
             doPredict(cropImg);
         }
     }
     
     async function doPredict(imgElement) {
-        //console.log(imgElement);
         const logits = tf.tidy(() => {
             const img = tf.cast(tf.browser.fromPixels(imgElement).resizeBilinear([IMAGE_SIZE, IMAGE_SIZE]), 'float32');
             const offset = tf.scalar(255.0);
@@ -107,32 +106,31 @@
         });
         
         const values = await logits.data();
-        let p = -1;
-        let v = -0.1;
-        for (let i = 0; i < values.length; i++) {
-            if (values[i] > v) {
-                v = values[i];
-                p = i;
-            }
-        }
+        const p = [].reduce.call(values, (m, c, i, arr) => c > arr[m] ? i : m, 0); // argmax
         document.getElementById("pred").innerHTML = labels[p];
         info = labels[p];
+        v = values[p];
         document.getElementById("conf").innerHTML = v.toPrecision(4);
-        if (v > 0.9) {
-            infocolor = "green";
-        }
-        else if (v > 0.7) {
-            infocolor = "yellow";
-        }
-        else if (v > 0.5) {
-            infocolor = "red";
-        }
-        else {
-            infocolor = "black";
-        }
+        infocolor = scaleColor(v);
         console.log({value: v, index: p, label: labels[p]});
         logits.dispose(); // prevent from WebGL memory leak
         //console.log(tf.memory());
+    }
+    
+    function scaleColor(p) {
+        let r, g, b = 0;
+        
+        if (p < 0.5) {
+            r = 255;
+            g = Math.round(510 * p);
+        }
+        else {
+            g = 255;
+            r = Math.round(510 - 510 * p);
+        }
+        const h = r * 0x10000 + g * 0x100 + b * 0x1;
+        
+        return '#' + ('000000' + h.toString(16)).slice(-6);
     }
     
     const initLive = () => {
