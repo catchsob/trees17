@@ -25,7 +25,6 @@
     const ENV = 'env.json'
     const LABELS_NAME = 'YOUR_LABELS';
     const IMAGE_SIZE = 448;
-    let env;
     let model = null;
     let labels;
     let video = null;
@@ -47,7 +46,7 @@
         canvas.width = show.offsetWidth;  // canvas width and height have to set here
         canvas.height = show.offsetHeight;
         ctx = canvas.getContext("2d", {willReadFrequently: true});
-        env = loadEnv(ENV);
+        const env = loadEnv(ENV);
         labels = loadLabels(env[LABELS_NAME]).split("\r\n");
         console.log('labels ' + env[LABELS_NAME] + ' loaded.');
         model = await tf.loadGraphModel(env[MODEL_NAME]);
