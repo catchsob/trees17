@@ -1,5 +1,5 @@
 <title>Trees Live</title>
-<div id="select">Image: <input type="file" id="select_img" accept="image/*, capture=camera" onchange="doPreview()"></div>
+<div id="select">Image: <input type="file" id="select_img" accept="image/*, capture=camera" onclick="stopLive()" onchange="doPreview()"></div>
 <div>Prediction: <label id="pred"></label>/ Confidence: <label id="conf"></label></div>
 <div id="livecontrol"><input id="livebutton" type="button" value="go live!" onclick="goLive()"></div>
 <br>
@@ -53,6 +53,12 @@
         console.log('model ' + env[MODEL_NAME] + ' loaded.');
     }
     
+    function stopLive() {
+        if (streaming) {
+            goLive();
+        }
+    }
+    
     function doPreview() {
         if (!window.FileReader) {
             console.log('no preview functionality supported by your browser!');
@@ -74,25 +80,28 @@
         img.src = imgSrc;
         
         img.onload = () => {  // wait for img be loaded, or img will be all zeros
-            //console.log(img.naturalWidth, img.naturalHeight);
-            let w = img.naturalWidth;
-            let x = 0;
-            let y = 0;
-            if (w != img.naturalHeight) {
-                if (img.naturalWidth > img.naturalHeight) {
-                    w = img.naturalHeight;
-                    x = Math.floor((img.naturalWidth - w) / 2);
-                }
-                else {
-                    y = Math.floor((img.naturalHeight - w) / 2);
-                }
-            }
-            ctx.drawImage(img, x, y, w, w, 0, 0, canvas.width, canvas.height);
-            var cropImg = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const cp = getCroppedPos(img.naturalWidth, img.naturalHeight);
+            ctx.drawImage(img, cp.x, cp.y, cp.w, cp.w, 0, 0, canvas.width, canvas.height);
+            const cropImg = ctx.getImageData(0, 0, canvas.width, canvas.height);
             // return image and then get canvas image will be failed;
             // doPredict() here would be OK. Should check this later.
             doPredict(cropImg);
         }
+    }
+    
+    const getCroppedPos = (width, height) => {
+        let w = width;
+        let x = 0, y = 0;
+        
+        if (w > height) {
+            w = height;
+            x = Math.floor((width - w) / 2);
+        }
+        else if (w < height) {
+            y = Math.floor((height - w) / 2);
+        }
+        
+        return {'x': x, 'y': y, 'w': w};
     }
     
     async function doPredict(imgElement) {
@@ -133,13 +142,13 @@
     }
     
     const initLive = () => {
-        console.log('initializing live ...')
-        video = createVideo("video", show.offsetWidth, show.offsetHeight);
+        console.log('initializing live ...');
         navigator.mediaDevices
             .getUserMedia(constraints)
             .then((stream) => {
-                video.srcObject = stream;
                 track = stream.getTracks()[0];  // keep for stop the stream when live be turned off
+                video = createVideo("video", track.getSettings().width, track.getSettings().height);
+                video.srcObject = stream;
                 video.onloadeddata = (event) => {
                     getFrameFromVideo(video, canvas);
                     liveinfo = null;
@@ -151,6 +160,36 @@
                 console.log(error + ", " + liveinfo);
                 goLive();  // reset screen
             });
+    };
+    
+    const constraints = {
+        audio: false,
+        video: {
+            facingMode: "environment" // user or environment
+        }
+    };
+    
+    const createVideo = (id, width, height) => {
+        const video = document.createElement("video");
+        video.id = id;
+        video.width = width;
+        video.height = height;
+        video.autoplay = true;
+        return video;
+    };
+    
+    const getFrameFromVideo = (video, canvas) => {
+        if (streaming) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const cp = getCroppedPos(video.width, video.height);
+            ctx.drawImage(video, cp.x, cp.y, cp.w, cp.w, 0, 0, canvas.width, canvas.height);
+            const cropImg = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            doPredict(cropImg);
+            ctx.font = "80px serif";
+            ctx.fillStyle = infocolor;
+            ctx.fillText(info, 50, 100);
+            requestAnimationFrame(() => getFrameFromVideo(video, canvas));
+        }
     };
     
     function goLive() {
@@ -170,7 +209,7 @@
                 track.stop();
                 track = null;
             }
-            if (video.src.active) {
+            if (video && video.src.active) {
                 video.src.stop();
             }
             video = null;
@@ -201,36 +240,6 @@
         }
         return result;
     }
-    
-    const constraints = {
-        audio: false,
-        video: {
-            facingMode: "environment" // user or environment
-        }
-    };
-    
-    const createVideo = (id, width, height) => {
-        const video = document.createElement("video");
-        video.id = id;
-        video.width = width;
-        video.height = height;
-        video.autoplay = true;
-        return video;
-    };
-    
-    const getFrameFromVideo = (video, canvas) => {
-        if (streaming) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            //ctx.save();
-            ctx.drawImage(video, 0, 0, video.width, video.height);
-            doPredict(video);
-            ctx.font = "80px serif";
-            ctx.fillStyle = infocolor;
-            ctx.fillText(info, 50, 100);
-            //ctx.restore();
-            requestAnimationFrame(() => getFrameFromVideo(video, canvas));
-        }
-    };
 
     document.getElementById("select").onload = init();
 </script>
