@@ -1,13 +1,16 @@
 <title>Trees Live</title>
 <div id="select">Image: <input type="file" id="select_img" accept="image/*, capture=camera" onclick="stopLive()" onchange="doPreview()"></div>
-<div>Prediction: <label id="pred"></label>/ Confidence: <label id="conf"></label></div>
+<div id="result">Prediction: <label id="pred"></label>/ Confidence: <label id="conf"></label></div>
 <div id="livecontrol"><input id="livebutton" type="button" value="go live!" onclick="goLive()"></div>
 <br>
 <div id="show"><canvas id="canvas"></canvas></div>
 
 <style type="text/css">
     div, input {
-        font-size: 4vw;
+        font-size: 1.5cm;
+    }
+    #select, #result {
+        white-space: nowrap;
     }
     label {
         color: brown;
@@ -71,11 +74,12 @@
         };
 
         const file = document.getElementById("select_img").files[0];
-        reader.readAsDataURL(file);
+        if (file != null) { // prevent from cancel while selecting pic
+            reader.readAsDataURL(file);
+        }
     }
     
     function cropImagePredict(imgSrc) {        
-        //create an image object from the path
         const img = new Image();
         img.src = imgSrc;
         

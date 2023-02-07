@@ -1,12 +1,15 @@
 <title>Trees TF.js</title>
 <div id="select">Image: <input type="file" id="select_img" accept="image/*, capture=camera" onchange="preview()"></div>
-<div>Prediction: <label id="pred"></label>/ Confidence: <label id="conf"></label></div>
+<div id="result">Prediction: <label id="pred"></label>/ Confidence: <label id="conf"></label></div>
 <br>
 <img id="preview_img" /><br>
 
 <style type="text/css">
     div, input {
-        font-size: 4vw;
+        font-size: 1.5cm;
+    }
+    #select, #result {
+        white-space: nowrap;
     }
     label {
         color: brown;
@@ -44,7 +47,9 @@
         };
 
         let file = document.getElementById("select_img").files[0];
-        reader.readAsDataURL(file);
+        if (file != null) { // prevent from cancel while selecting pic
+            reader.readAsDataURL(file);
+        }
     }
     
     async function init() {
