@@ -6,18 +6,18 @@
 <div id="show"><canvas id="canvas"></canvas></div>
 
 <style type="text/css">
-    div, input {
-        font-size: 5vw;
+    #select, #result, #livebutton, #select_img {
+        font-size: 4vw; // 5vw would cause auto zoom-out on mobile Web, check later
     }
-    #select, #result {
+    #select, #result, label, input {
         white-space: nowrap;
     }
     label {
         color: brown;
     }
     #show {
-        width: 100vmin;
-        height: 100vmin;
+        width: 98vmin;
+        height: 98vmin;
     }
 </style>
 
@@ -34,7 +34,6 @@
     let track = null;
     let canvas = null;
     let ctx = null;
-    const show = document.getElementById("show");
     let info = 'loading...';
     let infocolor = 'black';
     let streaming = false;
@@ -46,14 +45,16 @@
     async function init() {
         console.log('start ...');
         canvas = document.getElementById("canvas");
+        const show = document.getElementById("show");
         canvas.width = show.offsetWidth;  // canvas width and height have to set here
         canvas.height = show.offsetHeight;
         ctx = canvas.getContext("2d", {willReadFrequently: true});
-        const env = loadEnv(ENV);
-        labels = loadLabels(env[LABELS_NAME]).split("\r\n");
-        console.log('labels ' + env[LABELS_NAME] + ' loaded.');
+        const env = await fetchFile(ENV, json=true);
+        console.log(ENV + " loaded: ", env);
+        labels = (await fetchFile(env[LABELS_NAME])).split("\r\n");
+        console.log(env[LABELS_NAME] + ' loaded: ' + labels);
         model = await tf.loadGraphModel(env[MODEL_NAME]);
-        console.log('model ' + env[MODEL_NAME] + ' loaded.');
+        console.log(env[MODEL_NAME] + ' loaded.');
     }
     
     function stopLive() {
@@ -118,7 +119,7 @@
         });
         
         const values = await logits.data();
-        const p = [].reduce.call(values, (m, c, i, arr) => c > arr[m] ? i : m, 0); // argmax
+        const p = values.reduce((m, c, i, arr) => c > arr[m] ? i : m, 0); // argmax
         document.getElementById("pred").innerHTML = labels[p];
         info = labels[p];
         v = values[p];
@@ -150,7 +151,7 @@
         navigator.mediaDevices
             .getUserMedia(constraints)
             .then((stream) => {
-                track = stream.getTracks()[0];  // keep for stop the stream when live be turned off
+                track = stream.getTracks()[0];  // keep for turning off streaming
                 video = createVideo("video", track.getSettings().width, track.getSettings().height);
                 video.srcObject = stream;
                 video.onloadeddata = (event) => {
@@ -226,24 +227,21 @@
         }
     }
     
-    function loadLabels(filePath) {
-        return loadFile(filePath);
+    const fetchFile = (fileName, json=false) => {
+        return fetch(fileName)
+            .then((res) => {
+                if (res.status == 200) {
+                    return json ? res.json() : res.text();
+                }
+                else {
+                    return res.statusText;
+                }
+            })
+            .catch((err) => {
+                console.log("Error:", err);
+                return err;
+            });
     }
     
-    function loadEnv(filePath) {
-        return JSON.parse(loadFile(filePath));
-    }
-    
-    function loadFile(filePath) {
-        var result = null;
-        var xmlhttp = new XMLHttpRequest();
-        xmlhttp.open("GET", filePath, false);
-        xmlhttp.send();
-        if (xmlhttp.status == 200) {
-            result = xmlhttp.responseText;
-        }
-        return result;
-    }
-
     document.getElementById("select").onload = init();
 </script>
