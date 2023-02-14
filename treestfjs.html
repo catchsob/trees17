@@ -6,7 +6,7 @@
 
 <style type="text/css">
     div, input {
-        font-size: 5vw;
+        font-size: 4vw;
     }
     #select, #result {
         white-space: nowrap;
@@ -27,7 +27,6 @@
     const ENV = 'env.json'
     const LABELS_NAME = 'YOUR_LABELS';
     const IMAGE_SIZE = 448;
-    let env;
     let model;
     let labels;
     
@@ -54,11 +53,12 @@
     
     async function init() {
         console.log('start ...')
-        env = load_env(ENV)
+        const env = await fetchFile(ENV, json=true);
+        console.log(ENV + " loaded: ", env);
+        labels = (await fetchFile(env[LABELS_NAME])).split("\r\n");
+        console.log(env[LABELS_NAME] + ' loaded: ' + labels);
         model = await tf.loadGraphModel(env[MODEL_NAME]);
-        console.log('model ' + env[MODEL_NAME] + ' loaded.')
-        labels = load_labels(env[LABELS_NAME]).split("\r\n")
-        console.log('labels ' + env[LABELS_NAME] + ' loaded.')
+        console.log(env[MODEL_NAME] + ' loaded.');
     }
     
     async function predict(imgElement) {
@@ -85,23 +85,20 @@
         logits.dispose(); // prevent from WebGL memory leak
     }
     
-    function load_file(filePath) {
-        var result = null;
-        var xmlhttp = new XMLHttpRequest();
-        xmlhttp.open("GET", filePath, false);
-        xmlhttp.send();
-        if (xmlhttp.status == 200) {
-            result = xmlhttp.responseText;
-        }
-        return result;
-    }
-    
-    function load_labels(filePath) {
-        return load_file(filePath);
-    }
-    
-    function load_env(filePath) {
-        return JSON.parse(load_file(filePath));
+    const fetchFile = (fileName, json=false) => {
+        return fetch(fileName)
+            .then((res) => {
+                if (res.status == 200) {
+                    return json ? res.json() : res.text();
+                }
+                else {
+                    return res.statusText;
+                }
+            })
+            .catch((err) => {
+                console.log("Error:", err);
+                return err;
+            });
     }
     
     init().then(() => {
