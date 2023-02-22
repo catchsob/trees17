@@ -24,10 +24,14 @@
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
 
 <script>
-    const MODEL_NAME = 'YOUR_MODEL_TFJS';
     const ENV = 'env.json'
+    const MODEL_NAME = 'YOUR_MODEL_TFJS';
     const LABELS_NAME = 'YOUR_LABELS';
-    const IMAGE_SIZE = 448;
+    const NORMALIZATION_NAME = 'YOUR_NORMALIZATION';
+    let img_size = 448;
+    let pnone = false;
+    let shown = 3;
+    let shown_confidence = 0.4;
     let model = null;
     let labels;
     let video = null;
@@ -44,23 +48,42 @@
     
     async function init() {
         console.log('start ...');
+        
+        const imgButton = document.getElementById("select_img");
+        const liveButton = document.getElementById("livebutton");
+        imgButton.disabled = true;
+        liveButton.disabled = true;
+        
         canvas = document.getElementById("canvas");
         const show = document.getElementById("show");
         canvas.width = show.offsetWidth;  // canvas width and height have to set here
         canvas.height = show.offsetHeight;
         ctx = canvas.getContext("2d", {willReadFrequently: true});
+        ctx.font = "80px serif";
+        
         const env = await fetchFile(ENV, json=true);
         console.log(ENV + " loaded: ", env);
-        labels = (await fetchFile(env[LABELS_NAME])).split("\r\n");
+        
+        // normalization methond, pnone(-1~1) or pone(0~1)
+        pnone = NORMALIZATION_NAME in env && env[NORMALIZATION_NAME].toLowerCase() == "pnone";
+        
+        const text = await fetchFile(env[LABELS_NAME]);
+        const s = text.indexOf("\r") >= 0 ? "\r\n" : "\n"; // for variant newline in labels file
+        labels = text.split(s);
         console.log(env[LABELS_NAME] + ' loaded: ' + labels);
+        
         model = await tf.loadGraphModel(env[MODEL_NAME]);
-        console.log(env[MODEL_NAME] + ' loaded.');
+        img_size = model.inputs[0].shape[1];  // image size by input shape of model
+        console.log(env[MODEL_NAME] + ' loaded with input shape ' + model.inputs[0].shape +
+                    '; ' + (pnone ? 'pnone' : 'pone'));
+        
+        imgButton.disabled = false;
+        liveButton.disabled = false;
     }
     
     function stopLive() {
-        if (streaming) {
+        if (streaming)
             goLive();
-        }
     }
     
     function doPreview() {
@@ -72,12 +95,11 @@
         const reader = new FileReader();
         reader.onload = function (event) {
             cropImagePredict(event.target.result);
-        };
+        }
 
         const file = document.getElementById("select_img").files[0];
-        if (file != null) { // prevent from cancel while selecting pic
+        if (file != null) // prevent from cancel while selecting pic
             reader.readAsDataURL(file);
-        }
     }
     
     function cropImagePredict(imgSrc) {        
@@ -102,32 +124,72 @@
             w = height;
             x = Math.floor((width - w) / 2);
         }
-        else if (w < height) {
+        else if (w < height)
             y = Math.floor((height - w) / 2);
-        }
         
         return {'x': x, 'y': y, 'w': w};
     }
     
     async function doPredict(imgElement) {
         const logits = tf.tidy(() => {
-            const img = tf.cast(tf.browser.fromPixels(imgElement).resizeBilinear([IMAGE_SIZE, IMAGE_SIZE]), 'float32');
-            const offset = tf.scalar(255.0);
-            const normalized = img.div(offset);
-            const batched = normalized.reshape([1, IMAGE_SIZE, IMAGE_SIZE, 3]);
+            const img = tf.cast(tf.browser.fromPixels(imgElement).resizeBilinear([img_size, img_size]), 'float32');
+            let normalized;
+            if (pnone) {
+                //const offset = tf.scalar(127);
+                //normalized = img.sub(offset).div(offset);
+                const scaledown = tf.scalar(255.0);
+                const shift = tf.scalar(0.5);
+                const multiple = tf.scalar(2);
+                normalized = img.div(scaledown).sub(shift).mul(multiple);
+            }
+            else {
+                const offset = tf.scalar(255.0);
+                normalized = img.div(offset);
+            }
+            const batched = normalized.reshape([1, img_size, img_size, 3]);
             return model.predict(batched);
         });
         
         const values = await logits.data();
-        const p = values.reduce((m, c, i, arr) => c > arr[m] ? i : m, 0); // argmax
-        document.getElementById("pred").innerHTML = labels[p];
-        info = labels[p];
-        v = values[p];
+        const p = nargmax(values, shown);
+        document.getElementById("pred").innerHTML = labels[p[0]];
+        let infoarr = [];
+        for (let i = 0; i < p.length; i++) {
+            if (values[p[i]] >= shown_confidence)
+                infoarr.push(labels[p[i]]);
+            else
+                break;
+        }
+        info = (infoarr.length > 0) ? infoarr.join(", ") : "unknown";
+        v = values[p[0]];
         document.getElementById("conf").innerHTML = v.toPrecision(4);
         infocolor = scaleColor(v);
-        console.log({value: v, index: p, label: labels[p]});
+        console.log({value: v, index: p[0], label: labels[p[0]]}, infoarr);
         logits.dispose(); // prevent from WebGL memory leak
         //console.log(tf.memory());
+        
+        ctx.fillStyle = infocolor;
+        ctx.fillText(info, 50, 100)
+    }
+    
+    function nargmax(array, n = 1) {
+        //if (n == 1) {
+        //    return [array.reduce((m, c, i, arr) => c > arr[m] ? i : m, 0)];
+        //}
+        
+        let ans = [];
+        for (let c = 0; c < n; c++) {
+            if (ans.length >= array.length)
+                break;
+            let maxi = -1;
+            for (let i = 0; i < array.length; i++) {
+                if (!ans.includes(i) && (maxi < 0 || array[i] > array[maxi]))
+                    maxi = i;
+            }
+            ans.push(maxi);
+        }
+        
+        return ans;
     }
     
     function scaleColor(p) {
@@ -190,7 +252,6 @@
             ctx.drawImage(video, cp.x, cp.y, cp.w, cp.w, 0, 0, canvas.width, canvas.height);
             const cropImg = ctx.getImageData(0, 0, canvas.width, canvas.height);
             doPredict(cropImg);
-            ctx.font = "80px serif";
             ctx.fillStyle = infocolor;
             ctx.fillText(info, 50, 100);
             requestAnimationFrame(() => getFrameFromVideo(video, canvas));
@@ -214,9 +275,8 @@
                 track.stop();
                 track = null;
             }
-            if (video && video.src.active) {
+            if (video && video.src.active)
                 video.src.stop();
-            }
             video = null;
             livebutton.value = 'go live!';
             if (liveinfo != null) { // show error message while go live failed
@@ -230,12 +290,10 @@
     const fetchFile = (fileName, json=false) => {
         return fetch(fileName)
             .then((res) => {
-                if (res.status == 200) {
+                if (res.status == 200)
                     return json ? res.json() : res.text();
-                }
-                else {
+                else
                     return res.statusText;
-                }
             })
             .catch((err) => {
                 console.log("Error:", err);
