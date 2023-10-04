@@ -36,6 +36,9 @@ with open('env.json') as f:
     env = json.load(f)
 configuration = Configuration(access_token=env['YOUR_CHANNEL_ACCESS_TOKEN'])
 handler = WebhookHandler(env['YOUR_CHANNEL_SECRET'])
+with ApiClient(configuration) as api_client:
+    line_bot_api = MessagingApi(api_client)
+    line_bot_blob_api = MessagingApiBlob(api_client)
 
 res = env.get('YOUR_RESOLUTION', 448)
 label_file = env.get('YOUR_LABELS')
@@ -88,14 +91,12 @@ def callback():
 
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
-    with ApiClient(configuration) as api_client:
-        line_bot_api = MessagingApi(api_client)
-        line_bot_api.reply_message_with_http_info(
-            ReplyMessageRequest(
-                reply_token=event.reply_token,
-                messages=[TextMessage(text=event.message.text)]
-            )
+    line_bot_api.reply_message_with_http_info(
+        ReplyMessageRequest(
+            reply_token=event.reply_token,
+            messages=[TextMessage(text=event.message.text)]
         )
+    )
 
 
 @handler.add(MessageEvent, message=ImageMessageContent)
@@ -106,21 +107,16 @@ def handle_message(event):
                     'ADV': _classify_adv,
                     'FULL': _classify_full }
 
-    with ApiClient(configuration) as api_client:
-        line_bot_blob_api = MessagingApiBlob(api_client)
-        message_content = line_bot_blob_api.get_message_content(message_id=event.message.id)
-    
+    message_content = line_bot_blob_api.get_message_content(message_id=event.message.id)
     image = _preprocess(Image.open(BytesIO(message_content)))
     label = classify_fns[mode](image)
     
-    with ApiClient(configuration) as api_client:
-        line_bot_api = MessagingApi(api_client)
-        line_bot_api.reply_message(
-            ReplyMessageRequest(
-                reply_token=event.reply_token,
-                messages=[TextMessage(text=label)]
-            )
+    line_bot_api.reply_message(
+        ReplyMessageRequest(
+            reply_token=event.reply_token,
+            messages=[TextMessage(text=label)]
         )
+    )
 
 
 def _preprocess(image):
