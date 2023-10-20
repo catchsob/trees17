@@ -2,9 +2,12 @@
 # NAIVE:  pip install tensorflow
 # REST:   pip install requests
 # GRPC:   pip install grpcio tensorflow-serving-api
+# CUSTOMVERTEX: pip install google-cloud-aiplatform
 
 from io import BytesIO
 import json
+import os
+import sys
 
 from PIL import Image, ImageOps
 import numpy as np
@@ -32,7 +35,7 @@ from linebot.v3.webhooks import (
 
 app = Flask(__name__)
 
-with open('env.json') as f:
+with open('envnew.json') as f:
     env = json.load(f)
 configuration = Configuration(access_token=env['YOUR_CHANNEL_ACCESS_TOKEN'])
 handler = WebhookHandler(env['YOUR_CHANNEL_SECRET'])
@@ -42,7 +45,12 @@ with ApiClient(configuration) as api_client:
 
 res = env.get('YOUR_RESOLUTION', 448)
 label_file = env.get('YOUR_LABELS')
-mode = env.get('YOUR_MODE', 'NAIVE')  # NAIVE|REST|GRPC|ADV|FULL
+mode = env.get('YOUR_MODE', 'NAIVE')  # NAIVE|REST|GRPC|CUSTOMVERTEX|ADV|FULL
+if mode in ['NAIVE', 'REST', 'GRPC', 'CUSTOMVERTEX', 'ADV', 'FULL']:
+    print(f'in {mode} mode')
+else:
+    sys.exit('unknown mode!')
+
 if mode == 'REST':
     ssl = 's' if env.get('YOUR_REST_SSL', False) else ''
     rest_host = env.get('YOUR_REST_HOST', '127.0.0.1')
@@ -61,6 +69,18 @@ elif mode == 'GRPC':
     model_name = env.get('YOUR_MODEL_NAME', 'default')
     model_in = env.get('YOUR_MODEL_IN', '')
     model_out = env.get('YOUR_MODEL_OUT', '')
+elif mode =='CUSTOMVERTEX':
+    from google.cloud import aiplatform
+    res = 200
+    gcp_service = env.get('YOUR_GCP_SERVICE')
+    endpoint = env.get('YOUR_CUSTOMVERTEX_ENDPOINT')
+    region = env.get('YOUR_CUSTOMVERTEX_REGION')
+    project = env.get('YOUR_CUSTOMVERTEX_PROJ')
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = gcp_service
+    aiplatform.init(project=project, location=region)
+    endpoint = aiplatform.Endpoint(endpoint)
+    if not project or not endpoint:
+        sys.exit('environment error!')
 elif mode == 'ADV':
     pass
 elif mode == 'FULL':
@@ -104,6 +124,7 @@ def handle_message(event):
     classify_fns = {'NAIVE': _classify,
                     'REST': _classify_rest,
                     'GRPC': _classify_grpc,
+                    'CUSTOMVERTEX': _classfy_customvertex,
                     'ADV': _classify_adv,
                     'FULL': _classify_full }
 
@@ -118,7 +139,6 @@ def handle_message(event):
         )
     )
 
-
 def _preprocess(image):
     image = ImageOps.fit(image, (res, res))
     image = (np.expand_dims(image, axis=0)/255.).astype(np.float32)
@@ -127,7 +147,7 @@ def _preprocess(image):
 def _classify(image):  # NAIVE mode
     prediction = model.predict(image)
     p = np.argmax(prediction)
-    return _labels(np.argmax(prediction))
+    return _labels(p)
 
 def _classify_rest(image):  # REST mode
     import requests
@@ -165,6 +185,11 @@ def _classify_adv(image):  # ADV_MODE
     req.inputs[model_in].CopyFrom(t_p)
     r = stub.Predict(req, 13.0)
     p = np.argmax(r.outputs[model_out].float_val)
+    return _labels(p)
+
+def _classfy_customvertex(image):
+    prediction = endpoint.predict(instances=image.tolist())  # instances < 1.5M
+    p = np.ndarray.item(np.argmax(prediction.predictions, axis=1))
     return _labels(p)
 
 def _classify_full(image):  # FULL_MODE
