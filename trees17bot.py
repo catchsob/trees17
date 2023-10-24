@@ -35,7 +35,7 @@ from linebot.v3.webhooks import (
 
 app = Flask(__name__)
 
-with open('envnew.json') as f:
+with open('env.json') as f:
     env = json.load(f)
 configuration = Configuration(access_token=env['YOUR_CHANNEL_ACCESS_TOKEN'])
 handler = WebhookHandler(env['YOUR_CHANNEL_SECRET'])
