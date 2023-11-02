@@ -124,7 +124,7 @@ def handle_message(event):
     classify_fns = {'NAIVE': _classify,
                     'REST': _classify_rest,
                     'GRPC': _classify_grpc,
-                    'CUSTOMVERTEX': _classfy_customvertex,
+                    'CUSTOMVERTEX': _classify_customvertex,
                     'ADV': _classify_adv,
                     'FULL': _classify_full }
 
@@ -187,7 +187,7 @@ def _classify_adv(image):  # ADV_MODE
     p = np.argmax(r.outputs[model_out].float_val)
     return _labels(p)
 
-def _classfy_customvertex(image):
+def _classify_customvertex(image):
     prediction = endpoint.predict(instances=image.tolist())  # instances < 1.5M
     p = np.ndarray.item(np.argmax(prediction.predictions, axis=1))
     return _labels(p)
