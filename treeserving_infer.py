@@ -4,26 +4,15 @@ import argparse
 import json
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 
-
-def crop(img):
-    w, h = img.size
-    if w == h:
-        return img
-    if h > w:
-        d = int((h - w) / 2)
-        return img.crop((0, d, w, h-d))
-    d = int((w - h) / 2)
-    return img.crop((d, 0, w-d, h))
 
 def preprocess_images(images, res=448, precision='float32', pn1=False):
     imgshape = (res, res)
     imgs = np.empty((len(images), *imgshape, 3), dtype=precision)
     for i, image in enumerate(images):
         img = Image.open(image)
-        img = crop(img)
-        img = img.resize(imgshape)
+        img = ImageOps.fit(img, imgshape)
         imgs[i] = np.reshape(img.getdata(), (*imgshape, 3))
     imgs = imgs / 127.5 - 1 if pn1 else imgs / 255.
     return imgs
@@ -42,11 +31,10 @@ def dump_images(images, res=200, pn1=False):
     data = preprocess_images(images=images, res=res, pn1=pn1)    
     print(json.dumps({'instances': data.tolist()}))
 
-def infer_vertex(images, res, pn1, proj, region, endp, serv):
+def infer_vertex(images, res, pn1, endp, serv):
     from google.cloud import aiplatform
     
     os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = serv
-    aiplatform.init(project=proj, location=region)
     endpoint = aiplatform.Endpoint(endp)
     data = preprocess_images(images=images, res=res, pn1=pn1)
     prediction = endpoint.predict(instances=data.tolist())  # instances < 1.5M
