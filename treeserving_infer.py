@@ -31,10 +31,11 @@ def dump_images(images, res=200, pn1=False):
     data = preprocess_images(images=images, res=res, pn1=pn1)    
     print(json.dumps({'instances': data.tolist()}))
 
-def infer_vertex(images, res, pn1, endp, serv):
+def infer_vertex(images, res, pn1, proj, region, endp, serv):
     from google.cloud import aiplatform
     
     os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = serv
+    aiplatform.init(project=proj, location=region)
     endpoint = aiplatform.Endpoint(endp)
     data = preprocess_images(images=images, res=res, pn1=pn1)
     prediction = endpoint.predict(instances=data.tolist())  # instances < 1.5M
