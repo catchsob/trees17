@@ -16,10 +16,8 @@ def test_rest(img, model, host, port=8501, ssl=False):
     
     import requests
     
-    headers = {"content-type": "application/json"}
-    data = json.dumps({"instances": img.tolist()})
     r = requests.post(f'http{"s" if ssl else ""}://{host}:{port}/v1/models/{model}:predict',
-                      headers=headers, data=data)
+                      json={'instances': img.to_list()})
     return np.argmax(r.json()['predictions'])
     
 def test_grpc(img, model, host, modelin='input_1', modelout='dense_1', port=8500, ssl=False):
