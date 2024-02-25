@@ -3,15 +3,13 @@ import argparse
 import numpy as np
 
 def preprocess(filename, res=400):
-    from PIL import Image
+    from PIL import Image, ImageOps
     
-    img = Image.open(filename)
-    img = img.resize((res, res))
-    data = np.array(img.getdata())
-    img = data.reshape(1, *img.size, 3)
-    img = img.astype('float32')
-    img /= 255.
-    return img
+    image = Image.open(filename)
+    image = ImageOps.fit(image, (res, res))
+    image = np.array(image).astype(np.float32) / 255.
+    image = image.reshape((1, *image.shape))
+    return image
 
 def test_rest(img, model, host, port=8501, ssl=False):
     import json
